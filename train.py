@@ -24,7 +24,7 @@ LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 5
 WEIGHT_DECAY = 0
-EPOCHS = 5
+EPOCHS = 100
 NUM_CLASSES = 17
 NUM_WORKERS = 2
 PIN_MEMORY = True
@@ -60,10 +60,14 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = YoloLoss(NUM_CLASSES)
     start = time.perf_counter()
-    for epoch in range(EPOCHS):
-        train_fn(model, optimizer, loss_fn, train_loader, DEVICE)
-    end = time.perf_counter()
-    print(f"Training took {end-start} seconds")
+    try:
+        for epoch in range(EPOCHS):
+            train_fn(model, optimizer, loss_fn, train_loader, DEVICE)
+    finally:
+        end = time.perf_counter()
+
+        print(f"Training took {end-start} seconds")
+        torch.save(model.state_dict(), "tiny_train.pt")
 
 
 if __name__ == "__main__":
