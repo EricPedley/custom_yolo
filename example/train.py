@@ -22,7 +22,7 @@ from utils import (
     load_checkpoint,
 )
 from loss import YoloLoss
-
+import os
 seed = 123
 torch.manual_seed(seed)
 
@@ -36,9 +36,11 @@ NUM_WORKERS = 2
 PIN_MEMORY = True
 LOAD_MODEL = False
 LOAD_MODEL_FILE = "overfit.pth.tar"
-IMG_DIR = "data/images"
-LABEL_DIR = "data/labels"
+IMG_DIR = "../data/images/tiny_train"
+LABEL_DIR = "../data/labels/tiny_train"
 
+# change directory to file directory
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class Compose(object):
     def __init__(self, transforms):
@@ -84,14 +86,13 @@ def main():
         load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
 
     train_dataset = VOCDataset(
-        "data/100examples.csv",
         transform=transform,
         img_dir=IMG_DIR,
         label_dir=LABEL_DIR,
     )
 
     test_dataset = VOCDataset(
-        "data/test.csv", transform=transform, img_dir=IMG_DIR, label_dir=LABEL_DIR,
+        transform=transform, img_dir=IMG_DIR, label_dir=LABEL_DIR,
     )
 
     train_loader = DataLoader(
@@ -100,7 +101,7 @@ def main():
         num_workers=NUM_WORKERS,
         pin_memory=PIN_MEMORY,
         shuffle=True,
-        drop_last=True,
+        drop_last=False,
     )
 
     test_loader = DataLoader(
@@ -109,7 +110,7 @@ def main():
         num_workers=NUM_WORKERS,
         pin_memory=PIN_MEMORY,
         shuffle=True,
-        drop_last=True,
+        drop_last=False,
     )
 
     for epoch in range(EPOCHS):
