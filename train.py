@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 # change directory to current file
 import os
+import time
 
 from model import SUASYOLO
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -23,7 +24,7 @@ LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 5
 WEIGHT_DECAY = 0
-EPOCHS = 100
+EPOCHS = 5
 NUM_CLASSES = 17
 NUM_WORKERS = 2
 PIN_MEMORY = True
@@ -50,15 +51,19 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
 
 
 def main():
-    S = 5
-    model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
+    S =10 
+    #model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
+    model = Yolov1(split_size=S, num_boxes=1, num_classes=NUM_CLASSES).to(DEVICE)
     print(summary(model, (3, 640, 640)))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = YoloLoss(NUM_CLASSES)
+    start = time.perf_counter()
     for epoch in range(EPOCHS):
         train_fn(model, optimizer, loss_fn, train_loader, DEVICE)
+    end = time.perf_counter()
+    print(f"Training took {end-start} seconds")
 
 
 if __name__ == "__main__":

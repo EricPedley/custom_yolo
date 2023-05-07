@@ -3,6 +3,7 @@ Main file for training Yolo model on Pascal VOC dataset
 
 """
 
+import time
 import torch
 import torchvision.transforms as transforms
 import torch.optim as optim
@@ -11,6 +12,7 @@ from torchsummary import summary
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from model import Yolov1
+from model2 import SUASYOLO
 from dataset import VOCDataset
 from utils import (
     non_max_suppression,
@@ -23,6 +25,7 @@ from utils import (
     load_checkpoint,
 )
 from loss import YoloLoss
+from loss2 import YoloLoss as YoloLoss2
 import os
 seed = 123
 torch.manual_seed(seed)
@@ -32,7 +35,7 @@ LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available else "cpu"
 BATCH_SIZE = 5 # 64 in original paper but I don't have that much vram, grad accum?
 WEIGHT_DECAY = 0
-EPOCHS = 1000
+EPOCHS = 5 
 NUM_WORKERS = 2
 PIN_MEMORY = True
 LOAD_MODEL = False
@@ -64,7 +67,7 @@ def train_fn(train_loader, model, optimizer, loss_fn, epoch_no):
     for batch_idx, (x, y) in enumerate(loop):
         x, y = x.to(DEVICE), y.to(DEVICE)
         out = model(x)
-        loss = loss_fn(out, y)
+        loss = loss_fn(out.reshape(-1, 10, 10, 22), y)
         mean_loss.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
@@ -78,12 +81,16 @@ def train_fn(train_loader, model, optimizer, loss_fn, epoch_no):
 
 def main():
     S = 10 
-    model = Yolov1(split_size=S, num_boxes=2, num_classes=20).to(DEVICE)
+    C = 17
+    B = 1
+    model = Yolov1(split_size=S, num_boxes=B, num_classes=C).to(DEVICE)
+    #model = SUASYOLO(num_classes=C, cell_resolution=S).to(DEVICE)
     print(summary(model, (3, S*64, S*64)))
     optimizer = optim.Adam(
         model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
     )
-    loss_fn = YoloLoss(S=S)
+    loss_fn = YoloLoss(S=S, C=C, B=1)
+    #loss_fn = YoloLoss2(C)
 
     if LOAD_MODEL:
         load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
@@ -92,11 +99,13 @@ def main():
         transform=transform,
         img_dir=IMG_DIR,
         label_dir=LABEL_DIR,
-        S = S 
+        S = S,
+        C = C,
+        B = B
     )
 
     test_dataset = VOCDataset(
-        transform=transform, img_dir=IMG_DIR, label_dir=LABEL_DIR, S=S
+        transform=transform, img_dir=IMG_DIR, label_dir=LABEL_DIR, S=S, C=C, B=B
     )
 
     train_loader = DataLoader(
@@ -116,7 +125,8 @@ def main():
         shuffle=True,
         drop_last=False,
     )
-
+    
+    start = time.perf_counter()
     for epoch in tqdm(range(EPOCHS), desc="Epoch", position=0, leave=False):
         # for x, y in train_loader:
         #    x = x.to(DEVICE)
@@ -128,13 +138,13 @@ def main():
         #    import sys
         #    sys.exit()
 
-        pred_boxes, target_boxes = get_bboxes(
-            train_loader, model, iou_threshold=0.5, threshold=0.4, S=S
-        )
+        # pred_boxes, target_boxes = get_bboxes(
+        #     train_loader, model, iou_threshold=0.5, threshold=0.4, S=S, C=17
+        # )
 
-        mean_avg_prec = mean_average_precision(
-            pred_boxes, target_boxes, iou_threshold=0.5, box_format="midpoint"
-        )
+        # mean_avg_prec = mean_average_precision(
+        #     pred_boxes, target_boxes, iou_threshold=0.5, box_format="midpoint"
+        # )
         # tqdm.write(f"Train mAP: {mean_avg_prec}")
 
         #if mean_avg_prec > 0.9:
@@ -147,7 +157,8 @@ def main():
         #    time.sleep(10)
 
         train_fn(train_loader, model, optimizer, loss_fn, epoch)
-
+    end = time.perf_counter()
+    print(f"Training took {end - start}s")
 
 if __name__ == "__main__":
     main()
