@@ -13,7 +13,7 @@ class SUASDataset(torch.utils.data.Dataset):
         self.imgs = list(sorted(os.listdir(img_dir)))
         self.labels = list(sorted(os.listdir(label_dir)))
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> "tuple(torch.Tensor, torch.Tensor)":
         img_path = os.path.join(self.img_dir, self.imgs[idx])
         label_path = os.path.join(self.label_dir, self.labels[idx])
         boxes = []

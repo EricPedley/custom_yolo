@@ -2,7 +2,7 @@ from itertools import tee
 
 import torch
 import torch.nn as nn
-from torchvision.ops import batched_nms
+from torchvision.ops import nms 
 
 def pairwise(iterable):
     a, b = tee(iterable)
@@ -49,10 +49,8 @@ class SUASYOLO(nn.Module):
         x = self.feature_extraction(x)
         return self.detector(x)
 
-    def predict(self, x: torch.Tensor):
-        raw_predictions = self.forward(x)
+    def process_predictions(self, raw_predictions: torch.Tensor):
         assert raw_predictions.ndim == 2
-        assert raw_predictions.shape[0] == x.shape[0] # batch length
         assert raw_predictions.shape[1] == self.cell_resolution**2 * (5 + self.num_classes)
         raw_predictions = raw_predictions.reshape(-1, self.cell_resolution, self.cell_resolution, 5 + self.num_classes)
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
@@ -61,19 +59,25 @@ class SUASYOLO(nn.Module):
         objectness = raw_predictions[..., 4]
         classes = raw_predictions[..., 5:]
 
-        # convert boxes from (center_x, center_y, w, h) to (x1, y1, x2, y2)
-        boxes*= 640//self.cell_resolution
         boxes[..., :2] -= boxes[..., 2:] / 2 # adjust center coords to be top-left coords
-        for i in range(boxes.shape[0]):
-            for j in range(boxes.shape[1]):
-                boxes[i,j,0] += j * (640//self.cell_resolution)
-                boxes[i,j,1] += i * (640//self.cell_resolution)
+        boxes*= 1/self.cell_resolution# scale to be percent of global image coords
+        for i in range(boxes.shape[1]):# add offsets for each cell
+            for j in range(boxes.shape[2]):
+                boxes[..., i, j, 0] += j * (1/self.cell_resolution)
+                boxes[..., i, j, 1] += i * (1/self.cell_resolution)
+        boxes[..., 2:] += boxes[..., :2] # add width and height to get bottom-right coords
 
-        # do nms
         boxes = boxes.reshape(-1, 4)
         objectness = objectness.reshape(-1)
         classes = classes.reshape(-1, self.num_classes)
 
-        kept_indices = batched_nms(boxes, objectness, classes.argmax(dim=1), 0.5)
+        return boxes, objectness, classes
 
-        return boxes[kept_indices], classes[kept_indices]
+    def predict(self, x: torch.Tensor, nms_threshold=0.2, max_preds = 10):
+        raw_predictions = self.forward(x)
+
+        boxes, objectness, classes = self.process_predictions(raw_predictions)
+
+        kept_indices = nms(boxes, objectness, nms_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
+
+        return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds]
