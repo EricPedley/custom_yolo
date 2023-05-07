@@ -3,8 +3,8 @@ import torch.nn as nn
 from torchvision.ops import box_iou, nms
 
 from example.model import Yolov1 
-from example.loss import YoloLoss
-# from loss import YoloLoss
+#from example.loss import YoloLoss
+from loss import YoloLoss
 from dataset import SUASDataset
 
 from torchsummary import summary
@@ -13,6 +13,8 @@ from tqdm import tqdm
 
 # change directory to current file
 import os
+
+from model import SUASYOLO
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 seed = 42
@@ -30,7 +32,7 @@ LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
 
-def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, scheduler, loss_fn: nn.Module, dataloader: DataLoader, device: str):
+def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str):
     loop = tqdm(dataloader, leave=True)
     mean_loss = []
 
@@ -48,16 +50,15 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, scheduler, loss
 
 
 def main():
-    model = Yolov1(num_classes = NUM_CLASSES, split_size=10, num_boxes=1).to(DEVICE)
+    S = 5
+    model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
     print(summary(model, (3, 640, 640)))
-    train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = 10)
+    train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
-    # loss_fn = YoloLoss(NUM_CLASSES)
-    loss_fn = YoloLoss(S=10, C=NUM_CLASSES, B=1)
+    loss_fn = YoloLoss(NUM_CLASSES)
     for epoch in range(EPOCHS):
-        train_fn(model, optimizer, scheduler, loss_fn, train_loader, DEVICE)
+        train_fn(model, optimizer, loss_fn, train_loader, DEVICE)
 
 
 if __name__ == "__main__":

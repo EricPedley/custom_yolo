@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision.ops import box_iou
-
+import numpy as np
 LAMBDA_NOOBJ = 0.5
 LAMBDA_COORD = 5
 
@@ -19,22 +19,26 @@ class YoloLoss(nn.Module):
         assert predictions.shape[0] == targets.shape[0]
         predictions = predictions.reshape(-1, 5 + self.num_classes)
         targets = targets.reshape(-1, 5 + self.num_classes) 
-        # box loss
-        box_coord_loss = self.mse(predictions[..., :2], targets[..., :2])# x and y loss
-        box_size_loss = self.mse(torch.sign(predictions[..., 2:4]) * torch.sqrt(torch.abs(predictions[..., 2:4])), torch.sqrt(targets[..., 2:4]))# w and h loss
-
         # object loss (whether or not there was an object in the tile)
         # normally you weigh the loss differently for false positives vs false negatives
-        contains_obj = targets[..., 4] == 1
-        positive_object_loss = self.mse(predictions[..., 4][contains_obj], targets[..., 4][contains_obj])
+        objectness_targets = targets[..., 4]
+        objectness_predictions = predictions[..., 4]
+        contains_obj = objectness_targets == 1
+        
+        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj]) 
 
         no_obj = targets[..., 4] == 0
-        negative_object_loss = self.mse(predictions[..., 4][no_obj], targets[..., 4][no_obj])
+        negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
 
         object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
+        
+        # box loss
+        box_coord_loss = self.mse(predictions[..., :2][contains_obj], targets[..., :2][contains_obj])# x and y loss
+        box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
+
 
         # class loss
-        class_loss = self.mse(predictions[..., 5:], targets[..., 5:])
+        class_loss = self.mse(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
 
         # total loss
         total_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss) + object_loss + class_loss

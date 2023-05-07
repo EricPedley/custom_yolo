@@ -24,7 +24,7 @@ class SUASYOLO(nn.Module):
     def __init__(self, num_classes, cell_resolution = 7, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
         feature_depths = [
-            3, 64, 128, 256, 512, 1024, 1024
+            3, 64, 128, 256, 512, 1024, 1024, 1024
         ]
         self.feature_extraction = nn.Sequential(*[
             ConvLayer(in_depth, out_depth, 3, 1, 1)
