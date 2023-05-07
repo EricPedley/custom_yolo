@@ -24,8 +24,8 @@ from utils import (
     save_checkpoint,
     load_checkpoint,
 )
-from loss import YoloLoss
 from loss2 import YoloLoss as YoloLoss2
+from loss import YoloLoss
 import os
 seed = 123
 torch.manual_seed(seed)
@@ -67,7 +67,7 @@ def train_fn(train_loader, model, optimizer, loss_fn, epoch_no):
     for batch_idx, (x, y) in enumerate(loop):
         x, y = x.to(DEVICE), y.to(DEVICE)
         out = model(x)
-        loss = loss_fn(out.reshape(-1, 10, 10, 22), y)
+        loss = loss_fn(out.reshape_as(y), y)
         mean_loss.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
@@ -83,14 +83,14 @@ def main():
     S = 10 
     C = 17
     B = 1
-    model = Yolov1(split_size=S, num_boxes=B, num_classes=C).to(DEVICE)
-    #model = SUASYOLO(num_classes=C, cell_resolution=S).to(DEVICE)
+    #model = Yolov1(split_size=S, num_boxes=B, num_classes=C).to(DEVICE)
+    model = SUASYOLO(num_classes=C, cell_resolution=S).to(DEVICE)
     print(summary(model, (3, S*64, S*64)))
     optimizer = optim.Adam(
         model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
     )
-    loss_fn = YoloLoss(S=S, C=C, B=1)
-    #loss_fn = YoloLoss2(C)
+    #loss_fn = YoloLoss(S=S, C=C, B=1)
+    loss_fn = YoloLoss2(C)
 
     if LOAD_MODEL:
         load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
