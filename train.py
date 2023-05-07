@@ -3,8 +3,8 @@ import torch.nn as nn
 from torchvision.ops import box_iou, nms
 
 from example.model import Yolov1 
-from example.loss import YoloLoss
-#from loss import YoloLoss
+#from example.loss import YoloLoss
+from loss import YoloLoss
 from dataset import SUASDataset
 
 from torchsummary import summary
@@ -56,8 +56,7 @@ def main():
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-    #loss_fn = YoloLoss(num_classes=NUM_CLASSES)
-    loss_fn = YoloLoss(C=NUM_CLASSES, S=S, B=1)
+    loss_fn = YoloLoss(NUM_CLASSES)
     for epoch in range(EPOCHS):
         train_fn(model, optimizer, loss_fn, train_loader, DEVICE)
 

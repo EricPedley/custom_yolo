@@ -20,6 +20,7 @@ class YoloLoss(nn.Module):
         predictions = predictions.reshape(-1, 5 + self.num_classes)
         targets = targets.reshape(-1, 5 + self.num_classes) 
         # object loss (whether or not there was an object in the tile)
+        # normally you weigh the loss differently for false positives vs false negatives
         objectness_targets = targets[..., 4]
         contains_obj = (objectness_targets == 1).unsqueeze(1).expand_as(predictions)
         predictions_with_objs = contains_obj * predictions 
