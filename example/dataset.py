@@ -6,6 +6,7 @@ import torch
 import os
 import pandas as pd
 from PIL import Image
+import cv2 as cv
 
 
 class VOCDataset(torch.utils.data.Dataset):
@@ -38,6 +39,7 @@ class VOCDataset(torch.utils.data.Dataset):
                 boxes.append([class_label, x, y, width, height])
 
         img_path = os.path.join(self.img_dir, self.imgs_list[index])
+        # image = torch.tensor(cv.imread(img_path)).type(torch.FloatTensor).permute(2, 0, 1)
         image = Image.open(img_path)
         boxes = torch.tensor(boxes)
 
