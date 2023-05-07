@@ -30,7 +30,7 @@ torch.manual_seed(seed)
 # Hyperparameters etc. 
 LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available else "cpu"
-BATCH_SIZE = 5 # 64 in original paper but I don't have that much vram, grad accum?
+BATCH_SIZE = 10 # 64 in original paper but I don't have that much vram, grad accum?
 WEIGHT_DECAY = 0
 EPOCHS = 1000
 NUM_WORKERS = 2
@@ -58,7 +58,7 @@ class Compose(object):
 transform = Compose([transforms.Resize((448, 448)), transforms.ToTensor()]) 
 
 def train_fn(train_loader, model, optimizer, loss_fn):
-    loop = tqdm(train_loader, leave=True)
+    loop = tqdm(train_loader, desc="Batch", position=1, leave=False)
     mean_loss = []
 
     for batch_idx, (x, y) in enumerate(loop):
@@ -73,7 +73,7 @@ def train_fn(train_loader, model, optimizer, loss_fn):
         # update progress bar
         loop.set_postfix(loss=loss.item())
 
-    print(f"Mean loss was {sum(mean_loss)/len(mean_loss)}")
+    tqdm.write(f"Mean loss was {sum(mean_loss)/len(mean_loss)}")
 
 
 def main():
@@ -117,7 +117,7 @@ def main():
         drop_last=False,
     )
 
-    for epoch in range(EPOCHS):
+    for epoch in tqdm(range(EPOCHS), desc="Epoch", position=0, leave=False):
         # for x, y in train_loader:
         #    x = x.to(DEVICE)
         #    for idx in range(8):
@@ -135,7 +135,7 @@ def main():
         mean_avg_prec = mean_average_precision(
             pred_boxes, target_boxes, iou_threshold=0.5, box_format="midpoint"
         )
-        print(f"Train mAP: {mean_avg_prec}")
+        # tqdm.write(f"Train mAP: {mean_avg_prec}")
 
         #if mean_avg_prec > 0.9:
         #    checkpoint = {
