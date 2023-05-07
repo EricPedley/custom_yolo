@@ -40,7 +40,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
     for batch_idx, (x, y) in enumerate(loop):
         x: torch.Tensor = x.to(device)
         y: torch.Tensor = y.to(device)
-        out: torch.Tensor = model(x.permute(0, 3, 1, 2).type(torch.float32))
+        out: torch.Tensor = model(x)
         loss: torch.Tensor = loss_fn(out.reshape_as(y), y)
         mean_loss.append(loss.item())
         optimizer.zero_grad()
@@ -52,8 +52,8 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
 
 def main():
     S =10 
-    #model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
-    model = Yolov1(split_size=S, num_boxes=1, num_classes=NUM_CLASSES).to(DEVICE)
+    model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
+    #model = Yolov1(split_size=S, num_boxes=1, num_classes=NUM_CLASSES).to(DEVICE)
     print(summary(model, (3, 640, 640)))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)

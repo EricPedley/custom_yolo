@@ -23,8 +23,7 @@ class SUASDataset(torch.utils.data.Dataset):
                 class_no = int(class_no)
                 boxes.append([class_no, *[float(dim) for dim in box_dims]])
         boxes = torch.tensor(boxes)
-        img = cv.imread(img_path)
-
+        img = torch.tensor(cv.imread(img_path)).type(torch.FloatTensor).permute(2, 0, 1)
         #TODO apply transformations here
 
         num_cells = self.n_cells
