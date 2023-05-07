@@ -3,7 +3,8 @@ import torch.nn as nn
 from torchvision.ops import box_iou, nms
 
 from example.model import Yolov1 
-from loss import YoloLoss
+from example.loss import YoloLoss
+# from loss import YoloLoss
 from dataset import SUASDataset
 
 from torchsummary import summary
@@ -18,7 +19,7 @@ seed = 42
 torch.manual_seed(seed)
 LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 1
+BATCH_SIZE = 5
 WEIGHT_DECAY = 0
 EPOCHS = 100
 NUM_CLASSES = 17
@@ -53,16 +54,11 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
-    loss_fn = YoloLoss(NUM_CLASSES)
+    # loss_fn = YoloLoss(NUM_CLASSES)
+    loss_fn = YoloLoss(S=10, C=NUM_CLASSES, B=1)
     for epoch in range(EPOCHS):
         train_fn(model, optimizer, scheduler, loss_fn, train_loader, DEVICE)
 
-        if epoch % 10 == 0:
-            checkpoint = {
-                "state_dict": model.state_dict(),
-                "optimizer": optimizer.state_dict()
-            }
-            torch.save(checkpoint, f"checkpoint{epoch}.pth.tar")
 
 if __name__ == "__main__":
     main()
