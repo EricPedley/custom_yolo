@@ -10,7 +10,7 @@ class YoloLoss(nn.Module):
         super(YoloLoss, self).__init__()
         self.num_classes = num_classes
         self.mse = nn.MSELoss(reduction="sum")
-
+    
     def forward(self, predictions: torch.Tensor, targets: torch.Tensor):
         # targets shape is (s,s, 5+num_classes)
         # predictions shape is (s,s, 5*num_boxes+num_classes) but num_boxes is 1 for us so it's just the same
@@ -22,26 +22,23 @@ class YoloLoss(nn.Module):
         # object loss (whether or not there was an object in the tile)
         # normally you weigh the loss differently for false positives vs false negatives
         objectness_targets = targets[..., 4]
-        contains_obj = (objectness_targets == 1).unsqueeze(1).expand_as(predictions)
-        predictions_with_objs = contains_obj * predictions 
-        targets_with_objs = contains_obj * targets 
+        objectness_predictions = predictions[..., 4]
+        contains_obj = objectness_targets == 1
         
+        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj]) 
 
-        positive_object_loss = self.mse(predictions_with_objs[..., 4], objectness_targets)
-
-
-        preds_without_objs = (~contains_obj) * predictions
-        negative_object_loss = self.mse(preds_without_objs[..., 4], objectness_targets)
+        no_obj = targets[..., 4] == 0
+        negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
 
         object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
         
         # box loss
-        box_coord_loss = self.mse(predictions_with_objs[..., :2], targets_with_objs[..., :2])# x and y loss
-        box_size_loss = self.mse(torch.sign(predictions_with_objs[..., 2:4]) * torch.sqrt(torch.abs(predictions_with_objs[..., 2:4])), torch.sqrt(targets_with_objs[..., 2:4]))# w and h loss
+        box_coord_loss = self.mse(predictions[..., :2][contains_obj], targets[..., :2][contains_obj])# x and y loss
+        box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
 
 
         # class loss
-        class_loss = self.mse(predictions_with_objs[..., 5:], targets_with_objs[..., 5:])
+        class_loss = self.mse(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
 
         # total loss
         total_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss) + object_loss + class_loss
