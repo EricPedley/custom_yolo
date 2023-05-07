@@ -30,7 +30,7 @@ torch.manual_seed(seed)
 # Hyperparameters etc. 
 LEARNING_RATE = 2e-5
 DEVICE = "cuda" if torch.cuda.is_available else "cpu"
-BATCH_SIZE = 10 # 64 in original paper but I don't have that much vram, grad accum?
+BATCH_SIZE = 5 # 64 in original paper but I don't have that much vram, grad accum?
 WEIGHT_DECAY = 0
 EPOCHS = 1000
 NUM_WORKERS = 2
@@ -55,9 +55,9 @@ class Compose(object):
 
 
 # transform = Compose([transforms.Resize((448, 448))]) 
-transform = Compose([transforms.Resize((448, 448)), transforms.ToTensor()]) 
+transform = None#Compose([transforms.Resize((448, 448))]) 
 
-def train_fn(train_loader, model, optimizer, loss_fn):
+def train_fn(train_loader, model, optimizer, loss_fn, epoch_no):
     loop = tqdm(train_loader, desc="Batch", position=1, leave=False)
     mean_loss = []
 
@@ -73,13 +73,13 @@ def train_fn(train_loader, model, optimizer, loss_fn):
         # update progress bar
         loop.set_postfix(loss=loss.item())
 
-    tqdm.write(f"Mean loss was {sum(mean_loss)/len(mean_loss)}")
+    tqdm.write(f"Mean loss epoch {epoch_no} was {sum(mean_loss)/len(mean_loss)}")
 
 
 def main():
-    S = 7 
+    S = 10 
     model = Yolov1(split_size=S, num_boxes=2, num_classes=20).to(DEVICE)
-    print(summary(model, (3, 448, 448)))
+    print(summary(model, (3, S*64, S*64)))
     optimizer = optim.Adam(
         model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
     )
@@ -146,7 +146,7 @@ def main():
         #    import time
         #    time.sleep(10)
 
-        train_fn(train_loader, model, optimizer, loss_fn)
+        train_fn(train_loader, model, optimizer, loss_fn, epoch)
 
 
 if __name__ == "__main__":
