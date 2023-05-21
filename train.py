@@ -15,6 +15,9 @@ from tqdm import tqdm
 import os
 import time
 
+import wandb
+
+
 from model import SUASYOLO
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,12 +29,25 @@ BATCH_SIZE = 5
 WEIGHT_DECAY = 0
 EPOCHS = 100
 NUM_CLASSES = 17
-NUM_WORKERS = 2
+NUM_WORKERS = 4
 PIN_MEMORY = True
 LOAD_MODEL = False
 LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
+
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="custom-yolo",
+    
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": LEARNING_RATE,
+    "architecture": "YoloV1-Hybrid",
+    "dataset": "UCI-SUAS-10",
+    "epochs": 100,
+    }
+)
 
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str):
     loop = tqdm(dataloader, leave=True)
@@ -46,13 +62,16 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        loss_num = loss.item()
+        loop.set_postfix(loss=loss_num)
+        wandb.log({"loss": loss_num})
 
-        loop.set_postfix(loss=loss.item())
 
 
 def main():
     S =10 
     model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
+    model = torch.nn.DataParallel(model, device_ids=[0,1])
     #model = Yolov1(split_size=S, num_boxes=1, num_classes=NUM_CLASSES).to(DEVICE)
     print(summary(model, (3, 640, 640)))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)

@@ -9,6 +9,16 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
+class DWConv(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
+        super(DWConv, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
+            nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
+        )
+    def forward(self, x):
+        return self.conv(x)
+
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(ConvLayer, self).__init__()
@@ -20,12 +30,12 @@ class ConvLayer(nn.Module):
         )
     def forward(self, x):
         return self.conv(x)
-
+    
 class SUASYOLO(nn.Module):
-    def __init__(self, num_classes, cell_resolution = 7, img_size=(640, 640)):
+    def __init__(self, num_classes, cell_resolution = 10, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
         feature_depths = [
-            3, 64, 128, 256, 512, 1024, 1024, 1024
+            3, 64, 128, 256, 512, 1024, 1024 
         ]
         self.feature_extraction = nn.Sequential(*[
             ConvLayer(in_depth, out_depth, 3, 1, 1)
@@ -35,10 +45,9 @@ class SUASYOLO(nn.Module):
         num_size_reductions = len(feature_depths) - 1
 
         self.detector = nn.Sequential(
+            nn.Conv2d(feature_depths[-1], 512, kernel_size=3, stride=1, padding=1, groups=2),
+            nn.Conv2d(512, 5+num_classes, kernel_size=3, stride=1, padding=1, groups=2), # goal dimension is 10x10x(5+num_classes)
             nn.Flatten(),
-            nn.Linear(feature_depths[-1] * (img_size[0] // 2**num_size_reductions) * (img_size[1] // 2**num_size_reductions), 496),
-            nn.LeakyReLU(0.1),
-            nn.Linear(496, cell_resolution**2 * (5 + num_classes))
         )
 
         self.cell_resolution = cell_resolution
