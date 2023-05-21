@@ -36,18 +36,7 @@ LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
 
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="custom-yolo",
-    
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": LEARNING_RATE,
-    "architecture": "YoloV1-Hybrid",
-    "dataset": "UCI-SUAS-10",
-    "epochs": 100,
-    }
-)
+
 
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str):
     loop = tqdm(dataloader, leave=True)
@@ -78,6 +67,18 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = YoloLoss(NUM_CLASSES)
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="custom-yolo",
+        
+        # track hyperparameters and run metadata
+        config={
+        "learning_rate": LEARNING_RATE,
+        "architecture": "YoloV1-Hybrid",
+        "dataset": "UCI-SUAS-10",
+        "epochs": 100,
+        }
+    )
     start = time.perf_counter()
     try:
         for epoch in range(EPOCHS):
