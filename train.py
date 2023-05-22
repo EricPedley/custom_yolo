@@ -7,7 +7,7 @@ from example.model import Yolov1
 from loss import YoloLoss
 from dataset import SUASDataset
 
-from torchsummary import summary
+from torchinfo import summary
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -58,11 +58,11 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
 
 
 def main():
-    S =10 
-    model = SUASYOLO(num_classes = NUM_CLASSES, cell_resolution=S).to(DEVICE)
-    model = torch.nn.DataParallel(model, device_ids=[0,1])
-    #model = Yolov1(split_size=S, num_boxes=1, num_classes=NUM_CLASSES).to(DEVICE)
-    print(summary(model, (3, 640, 640)))
+    model = SUASYOLO(num_classes = NUM_CLASSES).to(DEVICE)
+    S = model.cell_resolution
+    model_summary = summary(model, (1, 3, 640, 640))
+    print(model_summary)
+    
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -77,6 +77,7 @@ def main():
         "architecture": "YoloV1-Hybrid",
         "dataset": "UCI-SUAS-10",
         "epochs": 100,
+        "Output Size (mb)":model_summary.to_megabytes(model_summary.total_output_bytes)
         }
     )
     start = time.perf_counter()

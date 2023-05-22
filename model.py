@@ -1,3 +1,4 @@
+import math
 from itertools import tee
 
 import torch
@@ -16,6 +17,7 @@ class DWConv(nn.Module):
             nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
             nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
         )
+        # self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=math.gcd(in_channels, out_channels), bias=bias)
     def forward(self, x):
         return self.conv(x)
 
