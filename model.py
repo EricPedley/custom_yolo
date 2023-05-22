@@ -94,7 +94,7 @@ class SUASYOLO(nn.Module):
 
         return boxes, objectness, classes
 
-    def predict(self, x: torch.Tensor, nms_threshold=0.2, max_preds = 10):
+    def predict(self, x: torch.Tensor, nms_threshold=0.2, max_preds = 10) -> "tuple[torch.Tensor, torch.Tensor]":
         raw_predictions = self.forward(x)
 
         boxes, objectness, classes = self.process_predictions(raw_predictions)

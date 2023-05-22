@@ -36,7 +36,7 @@ LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
 
-LOGGING=False
+LOGGING=True
 
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str):
     loop = tqdm(dataloader, leave=True)
@@ -46,7 +46,8 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
         x: torch.Tensor = x.to(device)
         y: torch.Tensor = y.to(device)
         out: torch.Tensor = model(x)
-        loss: torch.Tensor = loss_fn(out.reshape_as(y), y)
+        box_loss, object_loss, class_loss = loss_fn(out.reshape_as(y), y)
+        loss = box_loss + object_loss + class_loss
         mean_loss.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
@@ -54,7 +55,12 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
         loss_num = loss.item()
         loop.set_postfix(loss=loss_num)
         if LOGGING:
-            wandb.log({"loss": loss_num})
+            wandb.log({
+                "loss": loss_num,
+                "box_loss": box_loss.item(),
+                "object_loss": object_loss.item(),
+                "class_loss": class_loss.item()
+                })
 
 
 

@@ -35,16 +35,7 @@ from torchsummary import summary
 #             class_pred = classes.argmax()
 #             cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
-
-dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", 17, n_cells = 10)
-model = SUASYOLO(num_classes = 17, cell_resolution=10).to(DEVICE)
-model.load_state_dict(torch.load("tiny_train.pt"))
-model.eval()
-img, label = dataset[2]
-img = img.permute(1, 2, 0).numpy().astype(np.uint8)
-
-boxes, objectness, classes = model.process_predictions(label.reshape(1, -1))
-def display_boxes(boxes, classes, color, thickness, img):
+def display_boxes(boxes: torch.Tensor, classes: torch.Tensor, color, thickness, img):
 
     for box, classes in zip(boxes, classes):
         x1, y1, x2, y2 = (box*640).to("cpu").type(torch.int).tolist()
@@ -55,13 +46,22 @@ def display_boxes(boxes, classes, color, thickness, img):
         class_pred = classes.argmax().item()
         cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
+if __name__=='__main__':
+    dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", 17, n_cells = 10)
+    model = SUASYOLO(num_classes = 17, cell_resolution=10).to(DEVICE)
+    model.load_state_dict(torch.load("tiny_train.pt"))
+    model.eval()
+    img, label = dataset[2]
+    img = img.permute(1, 2, 0).numpy().astype(np.uint8)
 
-pred_boxes, pred_classes = model.predict(torch.tensor(img).type(torch.FloatTensor).permute(2, 0, 1).unsqueeze(0).to(DEVICE))
+    boxes, objectness, classes = model.process_predictions(label.reshape(1, -1))
 
-display_boxes(boxes, classes, (0, 255, 0), 3,img)
-display_boxes(pred_boxes, pred_classes, (0, 0, 255), 1,img)
+    pred_boxes, pred_classes = model.predict(torch.tensor(img).type(torch.FloatTensor).permute(2, 0, 1).unsqueeze(0).to(DEVICE))
+
+    display_boxes(boxes, classes, (0, 255, 0), 3,img)
+    display_boxes(pred_boxes, pred_classes, (0, 0, 255), 1,img)
 
 
 
-cv.imshow("ground truth", img)
-cv.waitKey(0)
+    cv.imshow("ground truth", img)
+    cv.waitKey(0)

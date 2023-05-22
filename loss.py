@@ -11,7 +11,11 @@ class YoloLoss(nn.Module):
         self.num_classes = num_classes
         self.mse = nn.MSELoss(reduction="sum")
     
-    def forward(self, predictions: torch.Tensor, targets: torch.Tensor):
+    def forward(self, predictions: torch.Tensor, targets: torch.Tensor) -> "tuple[torch.Tensor, torch.Tensor, torch.Tensor]":
+        '''
+        returns (box_loss, object_loss, class_loss) 
+        total loss is the sum of these
+        '''
         # targets shape is (s,s, 5+num_classes)
         # predictions shape is (s,s, 5*num_boxes+num_classes) but num_boxes is 1 for us so it's just the same
         # each vector is (x, y, w, h, objectness, class1, class2, ...)
@@ -35,14 +39,12 @@ class YoloLoss(nn.Module):
         # box loss
         box_coord_loss = self.mse(predictions[..., :2][contains_obj], targets[..., :2][contains_obj])# x and y loss
         box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
-
+        box_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss)
 
         # class loss
         class_loss = self.mse(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
 
-        # total loss
-        total_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss) + object_loss + class_loss
-        return total_loss
+        return (box_loss, object_loss, class_loss)
     
 class FocalLoss(nn.Module):
     def __init__(self, num_classes, gamma=2, alpha=0.25):
