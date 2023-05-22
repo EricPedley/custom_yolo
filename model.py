@@ -20,6 +20,16 @@ class DWConv(nn.Module):
         # self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=math.gcd(in_channels, out_channels), bias=bias)
     def forward(self, x):
         return self.conv(x)
+    
+class BottleNeck(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False, hidden_channels=None):
+        super(BottleNeck, self).__init__()
+        if hidden_channels is None:
+            hidden_channels = out_channels//2
+        self.shrink = DWConv(in_channels, hidden_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
+        self.expand = DWConv(hidden_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=bias)
+    def forward(self, x):
+        return x+self.expand(self.shrink(x))
 
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
