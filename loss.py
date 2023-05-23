@@ -51,7 +51,6 @@ class FocalLoss(nn.Module):
         super(FocalLoss, self).__init__()
         self.num_classes = num_classes
         self.mse = nn.MSELoss()
-        self.bce = nn.BCELoss()
         self.crossentropy = nn.CrossEntropyLoss()
         self.gamma = gamma
         self.alpha = alpha
@@ -68,18 +67,15 @@ class FocalLoss(nn.Module):
         # object loss (whether or not there was an object in the tile)
         # normally you weigh the loss differently for false positives vs false negatives
         objectness_targets = targets[..., 4]
-        objectness_predictions = torch.sigmoid(predictions[..., 4])
+        objectness_predictions = predictions[..., 4]
         contains_obj = objectness_targets == 1
-        object_pt = objectness_predictions[contains_obj].where(objectness_targets[contains_obj] == 1, 1 - objectness_predictions[contains_obj])
         
-        # positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj]) 
+        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj]) 
 
-        # no_obj = objectness_targets == 0
-        # negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
+        no_obj = targets[..., 4] == 0
+        negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
 
-        # object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
-        object_loss = -self.alpha*(1-object_pt)**self.gamma * torch.log(object_pt)
-        object_loss = object_loss.mean()
+        object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
         
         # box loss
         box_coord_loss = self.mse(predictions[..., :2][contains_obj], targets[..., :2][contains_obj])# x and y loss
