@@ -13,7 +13,12 @@ from visualize import display_boxes
 def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, iou_threshold: float = 0.5, nms_threshold: float = 0.2, visualize=False):
     precisions = []
     recalls = []
-    fig, axs = plt.subplots(1, len(dataset))
+    if visualize:
+        fig, axs = plt.subplots(1, len(dataset))
+    else:
+        axs = [None] * len(dataset)
+    was_training = model.training
+    model.eval()
     for (img, label), ax in zip(dataset, axs):
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
         boxes, objectness, classes = model.process_predictions(label.reshape(1, -1))
@@ -36,10 +41,12 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, iou_threshold: float = 0
         if len(boxes)>0:
             recall = len(ious) / len(boxes)
             recalls.append(recall)
-    toolbar = fig.canvas.toolbar
-    toolbar.pack_forget()
-    toolbar.update()
-    plt.show()
+    model.train(mode=was_training)
+    if visualize:
+        toolbar = fig.canvas.toolbar
+        toolbar.pack_forget()
+        toolbar.update()
+        plt.show()
     return np.mean(precisions), np.mean(recalls)
 
 if __name__=='__main__':

@@ -3,8 +3,9 @@ import torch.nn as nn
 from torchvision.ops import box_iou, nms, focal_loss
 
 from example.model import Yolov1 
+from eval import eval_map_mar
 #from example.loss import YoloLoss
-from loss import YoloLoss, FocalLoss
+from loss import FocalLoss
 from dataset import SUASDataset
 
 from torchinfo import summary
@@ -54,12 +55,15 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
         optimizer.step()
         loss_num = loss.item()
         loop.set_postfix(loss=loss_num)
+        mAP, mAR = eval_map_mar(model, dataloader.dataset)
         if LOGGING:
             wandb.log({
                 "loss": loss_num,
                 "box_loss": box_loss.item(),
                 "object_loss": object_loss.item(),
-                "class_loss": class_loss.item()
+                "class_loss": class_loss.item(),
+                "mAP": mAP,
+                "mAR": mAR
                 })
 
 
