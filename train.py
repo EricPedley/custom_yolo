@@ -1,27 +1,21 @@
-import torch
-import torch.nn as nn
-from torchvision.ops import box_iou, nms, focal_loss
-import numpy as np
-import matplotlib.pyplot as plt
-from example.model import Yolov1 
-from eval import create_mAP_mAR_graph, eval_map_mar
-#from example.loss import YoloLoss
-from loss import FocalLoss
-from dataset import SUASDataset
-
-from torchinfo import summary
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-# change directory to current file
 import os
 import time
 
-import wandb
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+import numpy as np
+import matplotlib.pyplot as plt
+from torchinfo import summary
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
-
+from eval import create_mAP_mAR_graph, eval_map_mar
+from loss import FocalLoss
+from dataset import SUASDataset
 from model import SUASYOLO
 from visualize import get_display_figures
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 seed = 42
@@ -41,7 +35,6 @@ LABEL_DIR = "data/labels/tiny_train"
 IOU_THRESHOLD = 0.5 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
-WANDB_LOGGING=False
 TENSORBOARD_LOGGING =True
 if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
@@ -64,15 +57,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             loss_num = loss.item()
             loop.set_postfix(loss=loss_num)
             mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD)
-            if WANDB_LOGGING:
-                wandb.log({
-                    "loss": loss_num,
-                    "box_loss": box_loss.item(),
-                    "object_loss": object_loss.item(),
-                    "class_loss": class_loss.item(),
-                    "mAP": mAP,
-                    "mAR": mAR
-                    })
+
             if TENSORBOARD_LOGGING:
                 writer.add_scalar('Loss/train', loss_num, epoch_no*len(dataloader) + batch_idx)
                 writer.add_scalar('Box Loss/train', box_loss.item(), epoch_no*len(dataloader) + batch_idx)
@@ -96,23 +81,7 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = FocalLoss(NUM_CLASSES)
-    if WANDB_LOGGING:
-        wandb.init(
-            # set the wandb project where this run will be logged
-            project="custom-yolo",
-            
-            # track hyperparameters and run metadata
-            config={
-                "learning_rate": LEARNING_RATE,
-                "architecture": "YoloV1-Hybrid",
-                "dataset": "UCI-SUAS-10",
-                "epochs": 100,
-                "batch_size": BATCH_SIZE,
-                "conf_threshold": CONF_THRESHOLD,
-                "nms_threshold": IOU_THRESHOLD,
-                "Output Size (mb)":model_summary.to_megabytes(model_summary.total_output_bytes)
-            }
-        )
+
     start = time.perf_counter()
     train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS)
     end = time.perf_counter()
