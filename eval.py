@@ -35,7 +35,7 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
             ax.axis("off")
         ious = box_iou(boxes, pred_boxes)
         # filter by iou > threshold
-        ious = ious[ious > iou_threshold]
+        ious = ious[ious > conf_threshold]
         precision = len(ious) / len(pred_boxes)
         precisions.append(precision)
         if len(boxes)>0:

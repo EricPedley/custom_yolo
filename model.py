@@ -4,32 +4,57 @@ from itertools import tee
 import torch
 import torch.nn as nn
 from torchvision.ops import nms 
+import numpy as np
 
 def pairwise(iterable):
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
 
+def flatten(l):
+  out = []
+  for item in l:
+    if isinstance(item, (list, tuple)):
+      out.extend(flatten(item))
+    else:
+      out.append(item)
+  return out
+
 class DWConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(DWConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
-            nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
+        # self.conv = nn.Sequential(
+        #     nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
+        #     nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
+        # )
+        self.conv = nn.Conv2d(
+            in_channels, 
+            out_channels, 
+            kernel_size, 
+            stride, 
+            padding, 
+            groups=1,#math.gcd(in_channels, out_channels), 
+            bias=bias
         )
-        # self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, groups=math.gcd(in_channels, out_channels), bias=bias)
+        self.act = nn.LeakyReLU(0.1)
+        self.bn = nn.BatchNorm2d(out_channels)
     def forward(self, x):
-        return self.conv(x)
+        return self.act(self.bn(self.conv(x)))
     
 class BottleNeck(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False, hidden_channels=None):
         super(BottleNeck, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         if hidden_channels is None:
             hidden_channels = out_channels//2
         self.shrink = DWConv(in_channels, hidden_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
-        self.expand = DWConv(hidden_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=bias)
+        self.expand = DWConv(hidden_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
+        if in_channels != out_channels:
+            self.shortcut_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=bias)
     def forward(self, x):
-        return x+self.expand(self.shrink(x))
+        skip_connection = x if self.in_channels == self.out_channels else self.shortcut_conv(x)
+        return skip_connection+self.expand(self.shrink(x))
 
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
@@ -44,7 +69,7 @@ class ConvLayer(nn.Module):
         return self.conv(x)
     
 class SUASYOLO(nn.Module):
-    def __init__(self, num_classes, cell_resolution = 10, img_size=(640, 640)):
+    def __init__(self, num_classes, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
         feature_depths = [
             3, 64, 128, 256, 512, 1024, 1024 
@@ -62,7 +87,7 @@ class SUASYOLO(nn.Module):
             nn.Flatten(),
         )
 
-        self.cell_resolution = cell_resolution
+        self.cell_resolution = img_size[0] // (2**num_size_reductions) 
         self.num_classes = num_classes
 
 
