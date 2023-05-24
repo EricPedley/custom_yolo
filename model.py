@@ -33,13 +33,12 @@ class DWConv(nn.Module):
             kernel_size, 
             stride, 
             padding, 
-            groups=1,#math.gcd(in_channels, out_channels), 
+            groups=math.gcd(in_channels, out_channels), 
             bias=bias
         )
-        self.act = nn.LeakyReLU(0.1)
-        self.bn = nn.BatchNorm2d(out_channels)
+       
     def forward(self, x):
-        return self.act(self.bn(self.conv(x)))
+        return self.conv(x)
     
 class BottleNeck(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False, hidden_channels=None):
