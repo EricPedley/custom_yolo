@@ -4,7 +4,7 @@ from torchvision.ops import box_iou, nms, focal_loss
 import numpy as np
 import matplotlib.pyplot as plt
 from example.model import Yolov1 
-from eval import eval_map_mar
+from eval import create_mAP_mAR_graph, eval_map_mar
 #from example.loss import YoloLoss
 from loss import FocalLoss
 from dataset import SUASDataset
@@ -21,6 +21,7 @@ import wandb
 
 
 from model import SUASYOLO
+from visualize import get_display_figures
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 seed = 42
@@ -37,7 +38,7 @@ LOAD_MODEL = False
 LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
-NMS_THESHOLD = 0.5 # iou threshold for nms
+IOU_THRESHOLD = 0.5 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
 WANDB_LOGGING=False
@@ -63,7 +64,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             optimizer.step()
             loss_num = loss.item()
             loop.set_postfix(loss=loss_num)
-            mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THESHOLD)
+            mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD)
             if WANDB_LOGGING:
                 wandb.log({
                     "loss": loss_num,
@@ -90,6 +91,7 @@ def main():
     input_shape = (1, 3, 640, 640) 
     model_summary = summary(model, input_shape)
     if TENSORBOARD_LOGGING:
+        writer.add_text("Model Summary", str(model_summary))
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
@@ -108,32 +110,27 @@ def main():
                 "epochs": 100,
                 "batch_size": BATCH_SIZE,
                 "conf_threshold": CONF_THRESHOLD,
-                "nms_threshold": NMS_THESHOLD,
+                "nms_threshold": IOU_THRESHOLD,
                 "Output Size (mb)":model_summary.to_megabytes(model_summary.total_output_bytes)
             }
         )
     start = time.perf_counter()
-    try:
-        train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS)
-    finally:
-        end = time.perf_counter()
-        # create mAP vs mAR plot and write to tensorboard
-        mAPs = []
-        mARs = []
-        print("Calculating mAP vs mAR")
-        for conf_threshold in tqdm(np.linspace(0, 1, 25)):
-            mAP, mAR = eval_map_mar(model, train_dataset, conf_threshold=conf_threshold, nms_threshold=NMS_THESHOLD)
-            mAPs.append(mAP)
-            mARs.append(mAR)
-        if TENSORBOARD_LOGGING:
-            fig = plt.figure()
-            plt.plot(mAPs, mARs)
-            writer.add_figure('mAP vs mAR', fig)
-        else:
-            plt.plot(mAPs, mARs)
-            plt.show()
-        print(f"Training took {end-start} seconds")
-        torch.save(model.state_dict(), "tiny_train.pt")
+    train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS)
+    end = time.perf_counter()
+    print(f"Training took {end-start} seconds")
+    # create mAP vs mAR plot and write to tensorboard
+
+    fig = create_mAP_mAR_graph(model, train_dataset) 
+    visualizations = get_display_figures(model, train_dataset)
+
+    if TENSORBOARD_LOGGING:
+        writer.add_figure("mAP vs mAR", fig)
+        for i, fig in enumerate(visualizations):
+            writer.add_figure(f"Visualization {i}", fig)
+    else:
+        fig.show()
+        plt.show()
+    torch.save(model.state_dict(), "tiny_train.pt")
 
 
 if __name__ == "__main__":

@@ -120,11 +120,17 @@ class SUASYOLO(nn.Module):
 
         return boxes, objectness, classes
 
-    def predict(self, x: torch.Tensor, nms_threshold=0.2, max_preds = 10) -> "tuple[torch.Tensor, torch.Tensor]":
+    def predict(self, x: torch.Tensor, conf_threshold = 0.5, iou_threshold=0.5, max_preds = 10) -> "tuple[torch.Tensor, torch.Tensor, torch.Tensor]":
+        '''
+        Returns (boxes, classes, objectness) where each is a tensor of shape (n, 4), (n, num_classes), (n, 1)
+        '''
         raw_predictions = self.forward(x)
 
         boxes, objectness, classes = self.process_predictions(raw_predictions)
+        boxes = boxes[objectness > conf_threshold]
+        classes = classes[objectness > conf_threshold]
+        objectness = objectness[objectness > conf_threshold]
 
-        kept_indices = nms(boxes, objectness, nms_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
+        kept_indices = nms(boxes, objectness, iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
-        return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds]
+        return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
