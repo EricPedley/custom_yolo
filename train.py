@@ -36,6 +36,8 @@ LOAD_MODEL = False
 LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/tiny_train"
 LABEL_DIR = "data/labels/tiny_train"
+NMS_THESHOLD = 0.5 # iou threshold for nms
+CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
 LOGGING=True
 
@@ -55,7 +57,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
         optimizer.step()
         loss_num = loss.item()
         loop.set_postfix(loss=loss_num)
-        mAP, mAR = eval_map_mar(model, dataloader.dataset)
+        mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THESHOLD)
         if LOGGING:
             wandb.log({
                 "loss": loss_num,
@@ -84,11 +86,14 @@ def main():
             
             # track hyperparameters and run metadata
             config={
-            "learning_rate": LEARNING_RATE,
-            "architecture": "YoloV1-Hybrid",
-            "dataset": "UCI-SUAS-10",
-            "epochs": 100,
-            "Output Size (mb)":model_summary.to_megabytes(model_summary.total_output_bytes)
+                "learning_rate": LEARNING_RATE,
+                "architecture": "YoloV1-Hybrid",
+                "dataset": "UCI-SUAS-10",
+                "epochs": 100,
+                "batch_size": BATCH_SIZE,
+                "conf_threshold": CONF_THRESHOLD,
+                "nms_threshold": NMS_THESHOLD,
+                "Output Size (mb)":model_summary.to_megabytes(model_summary.total_output_bytes)
             }
         )
     start = time.perf_counter()
