@@ -64,6 +64,9 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     plt.title(f"mAP vs mAR @ IOU={iou_threshold}")
     plt.xlabel("mAP")
     plt.ylabel("mAR")
+    # set scales from 0 to 1
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
     plt.plot(mAPs, mARs)
     return fig
 

@@ -91,7 +91,7 @@ def main():
     input_shape = (1, 3, 640, 640) 
     model_summary = summary(model, input_shape)
     if TENSORBOARD_LOGGING:
-        writer.add_text("Model Summary", str(model_summary))
+        writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
