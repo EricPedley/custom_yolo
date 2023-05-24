@@ -71,7 +71,7 @@ class SUASYOLO(nn.Module):
     def __init__(self, num_classes, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
         feature_depths = [
-            3, 64, 128, 256, 512, 1024, 1024 
+            3, 32, 64, 128, 256, 512
         ]
         self.feature_extraction = nn.Sequential(*[
             ConvLayer(in_depth, out_depth, 3, 1, 1)
@@ -92,7 +92,7 @@ class SUASYOLO(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.feature_extraction(x)
         x = self.detector(x)
-        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness
+        x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
         return nn.Flatten()(x) 
 
