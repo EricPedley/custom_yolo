@@ -10,7 +10,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 from torchvision.ops import box_iou
 from visualize import display_boxes
 
-def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, iou_threshold: float = 0.5, nms_threshold: float = 0.2, visualize=False):
+def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, iou_threshold: float = 0.5, nms_threshold: float = 0.5, visualize=False):
     precisions = []
     recalls = []
     if visualize:
