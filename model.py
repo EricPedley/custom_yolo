@@ -47,8 +47,8 @@ class BottleNeck(nn.Module):
         self.out_channels = out_channels
         if hidden_channels is None:
             hidden_channels = out_channels//2
-        self.shrink = DWConv(in_channels, hidden_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
-        self.expand = DWConv(hidden_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
+        self.shrink = ConvLayer(in_channels, hidden_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
+        self.expand = ConvLayer(hidden_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias)
         if in_channels != out_channels:
             self.shortcut_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=bias)
     def forward(self, x):
@@ -59,7 +59,7 @@ class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(ConvLayer, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias),
+            DWConv(in_channels, out_channels, kernel_size, stride, padding, bias=bias),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(0.1),
             nn.MaxPool2d(2, 2)
@@ -71,7 +71,7 @@ class SUASYOLO(nn.Module):
     def __init__(self, num_classes, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
         feature_depths = [
-            3, 32, 64, 128, 256, 512
+            3, 32, 64, 128, 256, 512, 1024
         ]
         self.feature_extraction = nn.Sequential(*[
             ConvLayer(in_depth, out_depth, 3, 1, 1)
