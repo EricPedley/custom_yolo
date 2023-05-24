@@ -83,7 +83,6 @@ class SUASYOLO(nn.Module):
         self.detector = nn.Sequential(
             nn.Conv2d(feature_depths[-1], 512, kernel_size=3, stride=1, padding=1, groups=2),
             nn.Conv2d(512, 5+num_classes, kernel_size=3, stride=1, padding=1, groups=2), # goal dimension is 10x10x(5+num_classes)
-            nn.Flatten(),
         )
 
         self.cell_resolution = img_size[0] // (2**num_size_reductions) 
@@ -92,7 +91,10 @@ class SUASYOLO(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         x = self.feature_extraction(x)
-        return self.detector(x)
+        x = self.detector(x)
+        x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness
+        x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
+        return nn.Flatten()(x) 
 
     def process_predictions(self, raw_predictions: torch.Tensor):
         assert raw_predictions.ndim == 2
