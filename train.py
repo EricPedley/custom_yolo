@@ -47,12 +47,11 @@ if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int):
-    for epoch_no in range(epochs):
-        print(f"Epoch {epoch_no+1}/{epochs}")
-        loop = tqdm(dataloader, leave=True)
+    loop = tqdm(range(epochs), leave=True)
+    for epoch_no in loop:
         mean_loss = []
 
-        for batch_idx, (x, y) in enumerate(loop):
+        for batch_idx, (x, y) in enumerate(dataloader):
             x: torch.Tensor = x.to(device)
             y: torch.Tensor = y.to(device)
             out: torch.Tensor = model(x)
