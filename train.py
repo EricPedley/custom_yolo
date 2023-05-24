@@ -83,6 +83,8 @@ def main():
     loss_fn = FocalLoss(NUM_CLASSES)
 
     start = time.perf_counter()
+    if TENSORBOARD_LOGGING:
+        print(f"Starting training run {num_prev_runs}")
     train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS)
     end = time.perf_counter()
     print(f"Training took {end-start} seconds")
@@ -98,7 +100,7 @@ def main():
     else:
         fig.show()
         plt.show()
-    torch.save(model.state_dict(), "tiny_train.pt")
+    # torch.save(model.state_dict(), "tiny_train.pt")
 
 
 if __name__ == "__main__":
