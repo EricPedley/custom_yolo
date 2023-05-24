@@ -56,15 +56,17 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             optimizer.step()
             loss_num = loss.item()
             loop.set_postfix(loss=loss_num)
-            mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD)
 
             if TENSORBOARD_LOGGING:
-                writer.add_scalar('Loss/train', loss_num, epoch_no*len(dataloader) + batch_idx)
-                writer.add_scalar('Box Loss/train', box_loss.item(), epoch_no*len(dataloader) + batch_idx)
-                writer.add_scalar('Object Loss/train', object_loss.item(), epoch_no*len(dataloader) + batch_idx)
-                writer.add_scalar('Class Loss/train', class_loss.item(), epoch_no*len(dataloader) + batch_idx)
-                writer.add_scalar('mAP/train', mAP, epoch_no*len(dataloader) + batch_idx)
-                writer.add_scalar('mAR/train', mAR, epoch_no*len(dataloader) + batch_idx)
+                step_no = epoch_no*len(dataloader) + batch_idx
+                writer.add_scalar('Loss/train', loss_num, step_no)
+                writer.add_scalar('Box Loss/train', box_loss.item(), step_no)
+                writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
+                writer.add_scalar('Class Loss/train', class_loss.item(), step_no)
+                if epoch_no % 2 == 0 and batch_idx == 0:
+                    mAP, mAR = eval_map_mar(model, dataloader.dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD)
+                    writer.add_scalar('mAP/train', mAP, step_no)
+                    writer.add_scalar('mAR/train', mAR, step_no) 
 
 
 
