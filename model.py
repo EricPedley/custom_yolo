@@ -92,8 +92,8 @@ class SUASYOLO(nn.Module):
     def forward(self, x) -> torch.Tensor:
         x = self.feature_extraction(x)
         x = self.detector(x)
-        x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness
-        x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
+        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness
+        # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
         return nn.Flatten()(x) 
 
     def process_predictions(self, raw_predictions: torch.Tensor):
