@@ -36,7 +36,8 @@ class SUASDataset(torch.utils.data.Dataset):
             x, y = (x * num_cells) - x_cell, (y * num_cells) - y_cell
             w, h = w * num_cells, h * num_cells
             if label_matrix[y_cell, x_cell, 4] == 1: # if cell already has an object
-                raise NotImplementedError("Need to support more than one object per cell") 
+                # raise NotImplementedError("Need to support more than one object per cell") 
+                continue
             label_matrix[y_cell, x_cell, :4] = torch.tensor([x, y, w, h])
             label_matrix[y_cell, x_cell, 4] = 1
             label_matrix[y_cell, x_cell, int(class_no) + 5] = 1

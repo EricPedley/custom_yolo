@@ -86,8 +86,8 @@ class FocalLoss(nn.Module):
 
         pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])
         
-        class_loss = -self.alpha*(1-pt)**self.gamma * torch.log(pt)
-        class_loss = class_loss.mean()
+        class_loss = -self.alpha*(1-pt)**self.gamma * torch.log(pt+1e-8)
+        class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
         # class_loss = self.crossentropy(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
