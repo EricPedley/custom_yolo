@@ -49,6 +49,7 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         toolbar.pack_forget()
         toolbar.update()
         plt.show()
+    # if np.mean(precisions)>0.9: raise Exception("I smell bullshit!")
     return np.mean(precisions) if len(precisions)>0 else 0, np.mean(recalls) if len(recalls)>0 else 0
 
 def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_threshold=0.5):
@@ -56,9 +57,10 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     mARs = []
     print("Calculating mAP vs mAR")
     for conf_threshold in tqdm(np.linspace(0, 1, 25)):
-        mAP, mAR = eval_map_mar(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=0.5)
+        mAP, mAR = eval_map_mar(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=0.99)
         mAPs.append(mAP)
         mARs.append(mAR)
+    # print(list(zip(mAPs, mARs)))
     fig = plt.figure()
     plt.title(f"mAP vs mAR @ IOU={iou_threshold}")
     plt.xlabel("mAP")
@@ -66,7 +68,6 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     # set scales from 0 to 1
     plt.xlim(0, 1)
     plt.ylim(0, 1)
-    print(list(zip(mAPs, mARs)))
     plt.plot(mAPs, mARs)
     return fig
 
@@ -74,10 +75,10 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
 if __name__=='__main__':
     model = SUASYOLO(num_classes = 17).to(DEVICE)
     dataset = SUASDataset("data/images/test_1", "data/labels/test_1", 17, n_cells = model.num_cells)
-    model.load_state_dict(torch.load("yolo.pt"))
+    model.load_state_dict(torch.load("custom_yolo.pt"))
     model.eval()
-    # print(eval_map_mar(model, dataset, visualize=True))
-    fig = create_mAP_mAR_graph(model, dataset)
-    fig.show()
-    plt.show()
+    print(eval_map_mar(model, dataset, visualize=True))
+    # fig = create_mAP_mAR_graph(model, dataset)
+    # fig.show()
+    # plt.show()
 

@@ -24,18 +24,16 @@ LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/20
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 100 
+EPOCHS = 200
 NUM_CLASSES = 17
 NUM_WORKERS = 4
 PIN_MEMORY = True
-LOAD_MODEL = False
-LOAD_MODEL_FILE = "overfit.pth.tar"
 IMG_DIR = "data/images/test_1"
 LABEL_DIR = "data/labels/test_1"
-IOU_THRESHOLD = 0.5 # iou threshold for nms
+IOU_THRESHOLD = 0.90 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
-TENSORBOARD_LOGGING =True
+TENSORBOARD_LOGGING = True 
 if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
@@ -64,7 +62,10 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
                 writer.add_scalar('Class Loss/train', class_loss.item(), step_no)
                 if epoch_no % 4 == 0 and batch_idx == 0:
-                    mAP, mAR = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD)
+                    mAP, mAR = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    # if mAP>0.9:
+                    #     torch.save(model.state_dict(), f"overfit.pt")
+                    #     break
                     writer.add_scalar('mAP/train', mAP, step_no)
                     writer.add_scalar('mAR/train', mAR, step_no) 
 
@@ -78,18 +79,7 @@ def main():
     model_summary = summary(model, input_shape)
     if TENSORBOARD_LOGGING:
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
-        # writer.add_hparams(
-        #     hparam_dict={
-        #     "learning_rate": LEARNING_RATE,
-        #     "batch_size": BATCH_SIZE,
-        #     "weight_decay": WEIGHT_DECAY,
-        #     "epochs": EPOCHS,
-        #     "num_classes": NUM_CLASSES,
-        #     "num_workers": NUM_WORKERS,
-        #     "pin_memory": PIN_MEMORY,
-        #     "iou_threshold": IOU_THRESHOLD,
-        #     "conf_threshold": CONF_THRESHOLD
-        # }, metric_dict={})
+        
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     # test_dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", NUM_CLASSES, n_cells = S)
@@ -106,6 +96,7 @@ def main():
     train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS, test_dataset)
     end = time.perf_counter()
     print(f"Training took {end-start} seconds")
+    model.eval()
     # create mAP vs mAR plot and write to tensorboard
 
     fig = create_mAP_mAR_graph(model, train_dataset) 
@@ -115,10 +106,33 @@ def main():
         writer.add_figure("mAP vs mAR", fig)
         for i, fig in enumerate(visualizations):
             writer.add_figure(f"Visualization {i}", fig)
+
+        mAP50, mAR50 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.5)
+        mAP75, mAR75 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.75)
+        mAP90, mAR90 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.9)
+        writer.add_hparams(
+            hparam_dict={
+            "learning_rate": LEARNING_RATE,
+            "batch_size": BATCH_SIZE,
+            "weight_decay": WEIGHT_DECAY,
+            "epochs": EPOCHS,
+            "num_classes": NUM_CLASSES,
+            "num_workers": NUM_WORKERS,
+            "pin_memory": PIN_MEMORY,
+            "iou_threshold": IOU_THRESHOLD,
+            "validation_conf_threshold": CONF_THRESHOLD
+        }, metric_dict={
+            "mAP@50": mAP50,
+            "mAR@50": mAR50,
+            "mAP@75": mAP75,
+            "mAR@75": mAR75,
+            "mAP@90": mAP90,
+            "mAR@90": mAR90, 
+        })
     else:
         fig.show()
         plt.show()
-    torch.save(model.state_dict(), "yolo.pt")
+    torch.save(model.state_dict(), "custom_yolo.pt")
 
 
 if __name__ == "__main__":
