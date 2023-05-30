@@ -3,7 +3,7 @@ from itertools import tee
 
 import torch
 import torch.nn as nn
-from torchvision.ops import nms 
+from torchvision.ops import batched_nms 
 import numpy as np
 
 def pairwise(iterable):
@@ -105,6 +105,12 @@ class SUASYOLO(nn.Module):
 
 
     def forward(self, x) -> torch.Tensor:
+        # visualize x
+        # if x.shape[0]>1:
+        #     import matplotlib.pyplot as plt
+        #     plt.imshow(x[0][0].detach().cpu().numpy().astype(np.uint8))
+        #     plt.show()
+
         x = self.feature_extraction(x)
         x = self.detector(x)
         # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
@@ -115,7 +121,7 @@ class SUASYOLO(nn.Module):
     def process_predictions(self, raw_predictions: torch.Tensor):
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
-        raw_predictions = torch.permute(raw_predictions, (0, 2, 3, 1))
+        raw_predictions = torch.transpose(raw_predictions, 1, 3)
         boxes = raw_predictions[..., :4]
         objectness = raw_predictions[..., 4]
         classes = raw_predictions[..., 5:]
@@ -138,13 +144,15 @@ class SUASYOLO(nn.Module):
         '''
         Returns (boxes, classes, objectness) where each is a tensor of shape (n, 4), (n, num_classes), (n, 1)
         '''
+        n_batches = x.shape[0]
         raw_predictions = self.forward(x)
 
         boxes, objectness, classes = self.process_predictions(raw_predictions)
         boxes = boxes[objectness > conf_threshold]
         classes = classes[objectness > conf_threshold]
         objectness = objectness[objectness > conf_threshold]
+        batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches)
 
-        kept_indices = nms(boxes, objectness, iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
+        kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
         return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
