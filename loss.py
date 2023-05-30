@@ -14,7 +14,7 @@ class FocalLoss(nn.Module):
         super(FocalLoss, self).__init__()
         self.num_classes = num_classes
         self.mse = nn.MSELoss(reduction="sum")
-        self.crossentropy = nn.CrossEntropyLoss()
+        self.crossentropy = nn.CrossEntropyLoss(reduction="sum")
         self.bce = nn.BCELoss()
         self.gamma = gamma
         self.alpha = alpha
@@ -52,7 +52,7 @@ class FocalLoss(nn.Module):
         box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
         box_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss)
 
-        predictions[..., 5:] = torch.sigmoid(predictions[..., 5:])
+        # predictions[..., 5:] = torch.softmax(predictions[..., 5:], dim=1)
 
         # pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])
         

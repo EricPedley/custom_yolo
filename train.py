@@ -78,6 +78,18 @@ def main():
     model_summary = summary(model, input_shape)
     if TENSORBOARD_LOGGING:
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
+        # writer.add_hparams(
+        #     hparam_dict={
+        #     "learning_rate": LEARNING_RATE,
+        #     "batch_size": BATCH_SIZE,
+        #     "weight_decay": WEIGHT_DECAY,
+        #     "epochs": EPOCHS,
+        #     "num_classes": NUM_CLASSES,
+        #     "num_workers": NUM_WORKERS,
+        #     "pin_memory": PIN_MEMORY,
+        #     "iou_threshold": IOU_THRESHOLD,
+        #     "conf_threshold": CONF_THRESHOLD
+        # }, metric_dict={})
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
     # test_dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", NUM_CLASSES, n_cells = S)

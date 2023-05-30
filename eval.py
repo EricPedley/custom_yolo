@@ -30,8 +30,8 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         )
         pred_boxes = pred_boxes.to("cpu")
         if visualize:
-            display_boxes(boxes, classes[objectness>0], (0,255,0),3,img)
-            display_boxes(pred_boxes, pred_classes, (0,0,255),1,img)
+            display_boxes(boxes, classes[objectness>0], objectness, (0,255,0),3,img)
+            display_boxes(pred_boxes, pred_classes, pred_objectness, (0,0,255),1,img)
             ax.imshow(img)
             ax.axis("off")
         ious = box_iou(boxes, pred_boxes)
@@ -49,7 +49,7 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         toolbar.pack_forget()
         toolbar.update()
         plt.show()
-    return np.mean(precisions), np.mean(recalls)
+    return np.mean(precisions) if len(precisions)>0 else 0, np.mean(recalls) if len(recalls)>0 else 0
 
 def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_threshold=0.5):
     mAPs = []
@@ -66,14 +66,15 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     # set scales from 0 to 1
     plt.xlim(0, 1)
     plt.ylim(0, 1)
+    print(list(zip(mAPs, mARs)))
     plt.plot(mAPs, mARs)
     return fig
 
 
 if __name__=='__main__':
-    dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", 17, n_cells = 10)
     model = SUASYOLO(num_classes = 17).to(DEVICE)
-    model.load_state_dict(torch.load("tiny_train.pt"))
+    dataset = SUASDataset("data/images/test_1", "data/labels/test_1", 17, n_cells = model.num_cells)
+    model.load_state_dict(torch.load("yolo.pt"))
     model.eval()
     # print(eval_map_mar(model, dataset, visualize=True))
     fig = create_mAP_mAR_graph(model, dataset)

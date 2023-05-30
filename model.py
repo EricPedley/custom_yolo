@@ -92,7 +92,7 @@ class SUASYOLO(nn.Module):
         S = self.num_cells
         C = self.num_classes
         B = 1
-        hidden_size = 512 
+        hidden_size = 512
         self.detector = nn.Sequential(
             nn.Flatten(),
             nn.Linear(1024 * S*S, hidden_size),
@@ -114,8 +114,9 @@ class SUASYOLO(nn.Module):
         x = self.feature_extraction(x)
         x = self.detector(x)
         x = x.reshape(-1, self.num_classes+5, self.num_cells, self.num_cells)
-        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
+        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
+        x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
         # x = nn.Flatten()(x)
         return x
 
