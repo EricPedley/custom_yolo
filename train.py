@@ -24,7 +24,7 @@ LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/20
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 2 
+EPOCHS = 100 
 NUM_CLASSES = 17
 NUM_WORKERS = 4
 PIN_MEMORY = True
@@ -106,7 +106,7 @@ def main():
     else:
         fig.show()
         plt.show()
-    # torch.save(model.state_dict(), "train.pt")
+    torch.save(model.state_dict(), "yolo.pt")
 
 
 if __name__ == "__main__":

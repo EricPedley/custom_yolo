@@ -77,7 +77,7 @@ class SUASYOLO(nn.Module):
         super(SUASYOLO, self).__init__()
         self.num_classes = num_classes
         feature_depths = [
-            3, 64, 128, 256, 512, 1024
+            3, 64, 128, 256, 512, 1024, 1024
         ]
         self.feature_extraction = nn.Sequential(*flatten([
             [
@@ -94,12 +94,12 @@ class SUASYOLO(nn.Module):
         B = 1
         hidden_size = 512 
         self.detector = nn.Sequential(
-            # nn.Flatten(),
-            # nn.Linear(1024 * S*S, hidden_size),
-            # nn.LeakyReLU(0.1),
-            # nn.Linear(hidden_size, S * S * (C + B * 5)),
-            nn.Conv2d(feature_depths[-1], hidden_size, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(hidden_size, 5+num_classes, kernel_size=3, stride=1, padding=1),
+            nn.Flatten(),
+            nn.Linear(1024 * S*S, hidden_size),
+            nn.LeakyReLU(0.1),
+            nn.Linear(hidden_size, S * S * (C + B * 5)),
+            # nn.Conv2d(feature_depths[-1], hidden_size, kernel_size=3, stride=1, padding=1),
+            # nn.Conv2d(hidden_size, 5+num_classes, kernel_size=3, stride=1, padding=1),
         )
 
 
@@ -113,12 +113,14 @@ class SUASYOLO(nn.Module):
 
         x = self.feature_extraction(x)
         x = self.detector(x)
+        x = x.reshape(-1, self.num_classes+5, self.num_cells, self.num_cells)
         # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
         # x = nn.Flatten()(x)
         return x
 
     def process_predictions(self, raw_predictions: torch.Tensor):
+        '''Returns (boxes, objectness, classes)'''
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
         raw_predictions = torch.transpose(raw_predictions, 1, 3)

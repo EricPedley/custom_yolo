@@ -68,9 +68,10 @@ def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5):
     return figures 
 
 if __name__=='__main__':
-    dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", 17, n_cells = 10)
     model = SUASYOLO(num_classes = 17).to(DEVICE)
-    model.load_state_dict(torch.load("tiny_train.pt"))
+    n_cells = model.num_cells
+    dataset = SUASDataset("data/images/test_1", "data/labels/test_1", 17, n_cells = n_cells)
+    model.load_state_dict(torch.load("yolo.pt"))
     model.eval()
     figs = get_display_figures(model, dataset)
     for fig in figs:

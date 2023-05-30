@@ -42,7 +42,7 @@ class SUASDataset(torch.utils.data.Dataset):
             label_matrix[y_cell, x_cell, 4] = 1
             label_matrix[y_cell, x_cell, int(class_no) + 5] = 1
 
-        return img, label_matrix.permute(2, 0, 1)
+        return img, label_matrix.permute(2, 1, 0)
         
 
 
