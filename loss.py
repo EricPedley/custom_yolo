@@ -52,11 +52,13 @@ class FocalLoss(nn.Module):
         self.num_classes = num_classes
         self.mse = nn.MSELoss()
         self.crossentropy = nn.CrossEntropyLoss()
+        self.bce = nn.BCELoss()
         self.gamma = gamma
         self.alpha = alpha
 
     def forward(self, predictions: torch.Tensor, targets: torch.Tensor):
         '''total_loss = box_loss + object_loss + class_loss'''
+
         # targets shape is (s,s, 5+num_classes)
         # predictions shape is (s,s, 5*num_boxes+num_classes) but num_boxes is 1 for us so it's just the same
         # each vector is (x, y, w, h, objectness, class1, class2, ...)
@@ -70,10 +72,13 @@ class FocalLoss(nn.Module):
         objectness_predictions = predictions[..., 4]
         contains_obj = objectness_targets == 1
         
-        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj]) 
+        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj])
 
         no_obj = targets[..., 4] == 0
         negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
+
+        if not contains_obj.any():
+            return (torch.tensor(0), negative_object_loss, torch.tensor(0))
 
         object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
         
@@ -82,15 +87,23 @@ class FocalLoss(nn.Module):
         box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
         box_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss)
 
-        predictions[..., 5:] = torch.softmax(predictions[..., 5:], 1)
+        predictions[..., 5:] = torch.sigmoid(predictions[..., 5:])
 
-        pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])
+        # pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])
         
-        class_loss = -self.alpha*(1-pt)**self.gamma * torch.log(pt+1e-8)
-        class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
+        # class_loss = -self.alpha*(1-pt)**self.gamma * torch.log(pt+1e-8)
+        # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
-        # class_loss = self.crossentropy(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
-
+        class_loss = self.bce(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
+        total_loss = box_loss + object_loss + class_loss
+        if torch.isnan(total_loss):
+            print("box loss", box_loss)
+            print("object loss", object_loss)
+            print("class loss", class_loss)
+            print("predictions", predictions)
+            print("targets", targets)
+            print("contains_obj", contains_obj)
+            raise ValueError("loss is nan")
         # total loss
         return (box_loss, object_loss, class_loss) 

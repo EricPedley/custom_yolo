@@ -20,18 +20,18 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 seed = 42
 torch.manual_seed(seed)
-LEARNING_RATE = 2e-5
+LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/2019/04/25/recipe/
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 5
+BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 100 
+EPOCHS = 2 
 NUM_CLASSES = 17
 NUM_WORKERS = 4
 PIN_MEMORY = True
 LOAD_MODEL = False
 LOAD_MODEL_FILE = "overfit.pth.tar"
-IMG_DIR = "data/images/train"
-LABEL_DIR = "data/labels/train"
+IMG_DIR = "data/images/test_1"
+LABEL_DIR = "data/labels/test_1"
 IOU_THRESHOLD = 0.5 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -48,7 +48,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             x: torch.Tensor = x.to(device)
             y: torch.Tensor = y.to(device)
             out: torch.Tensor = model(x)
-            box_loss, object_loss, class_loss = loss_fn(out.reshape_as(y), y)
+            box_loss, object_loss, class_loss = loss_fn(out, y)
             loss = box_loss + object_loss + class_loss
             mean_loss.append(loss.item())
             optimizer.zero_grad()
@@ -73,14 +73,17 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
 
 def main():
     model = SUASYOLO(num_classes = NUM_CLASSES).to(DEVICE)
-    S = model.cell_resolution
+    S = model.num_cells
     input_shape = (1, 3, 640, 640) 
     model_summary = summary(model, input_shape)
     if TENSORBOARD_LOGGING:
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
-    test_dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", NUM_CLASSES, n_cells = S)
+    # test_dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", NUM_CLASSES, n_cells = S)
+    test_dataset = train_dataset
+    assert len(train_dataset)==4
+    assert len(test_dataset)==4
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = FocalLoss(NUM_CLASSES)
@@ -94,7 +97,7 @@ def main():
     # create mAP vs mAR plot and write to tensorboard
 
     fig = create_mAP_mAR_graph(model, train_dataset) 
-    visualizations = get_display_figures(model, train_dataset)
+    visualizations = get_display_figures(model, train_dataset, n=min(5, BATCH_SIZE))
 
     if TENSORBOARD_LOGGING:
         writer.add_figure("mAP vs mAR", fig)

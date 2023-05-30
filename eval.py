@@ -22,7 +22,7 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
     model.eval()
     for (img, label), ax in zip(dataset, axs):
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
-        boxes, objectness, classes = model.process_predictions(label.reshape(1, -1))
+        boxes, objectness, classes = model.process_predictions(label.unsqueeze(0))
         boxes = boxes[objectness > 0].to("cpu")
         pred_boxes, pred_classes, pred_objectness = model.predict(
             torch.tensor(img).type(torch.FloatTensor).permute(2,0,1).unsqueeze(0).to(DEVICE),

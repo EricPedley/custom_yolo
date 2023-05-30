@@ -1,0 +1,25 @@
+# This is the config file for training yolov8.
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: /home/holden/code/custom_yolo/data
+train: images/train_2   
+val: images/validation_2
+test: images/test_2
+
+# Classes
+# The 
+names:
+  0: circle
+  1: cross
+  2: heptagon
+  3: hexagon
+  4: octagon
+  5: pentagon
+  6: quartercircle
+  7: rectangle
+  8: semicircle
+  9: square
+  10: star
+  11: trapezoid
+  12: triangle
+  13: person

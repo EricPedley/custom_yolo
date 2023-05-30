@@ -75,6 +75,7 @@ class ConvLayer(nn.Module):
 class SUASYOLO(nn.Module):
     def __init__(self, num_classes, img_size=(640, 640)):
         super(SUASYOLO, self).__init__()
+        self.num_classes = num_classes
         feature_depths = [
             3, 64, 128, 256, 512, 1024
         ]
@@ -87,39 +88,44 @@ class SUASYOLO(nn.Module):
         ]))
 
         num_size_reductions = len(feature_depths) - 1
-
+        self.num_cells = img_size[0] // (2**num_size_reductions) 
+        S = self.num_cells
+        C = self.num_classes
+        B = 1
+        hidden_size = 512 
         self.detector = nn.Sequential(
-            nn.Conv2d(feature_depths[-1], 512, kernel_size=3, stride=1, padding=1, groups=2),
-            nn.Conv2d(512, 5+num_classes, kernel_size=3, stride=1, padding=1, groups=2), # goal dimension is 10x10x(5+num_classes)
+            # nn.Flatten(),
+            # nn.Linear(1024 * S*S, hidden_size),
+            # nn.LeakyReLU(0.1),
+            # nn.Linear(hidden_size, S * S * (C + B * 5)),
+            nn.Conv2d(feature_depths[-1], hidden_size, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(hidden_size, 5+num_classes, kernel_size=3, stride=1, padding=1),
         )
 
-        self.cell_resolution = img_size[0] // (2**num_size_reductions) 
-        self.num_classes = num_classes
 
 
     def forward(self, x) -> torch.Tensor:
         x = self.feature_extraction(x)
         x = self.detector(x)
-        x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
+        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually has a negligible effect on the loss or mAP)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
-        return nn.Flatten()(x) 
+        # x = nn.Flatten()(x)
+        return x
 
     def process_predictions(self, raw_predictions: torch.Tensor):
-        assert raw_predictions.ndim == 2
-        assert raw_predictions.shape[1] == self.cell_resolution**2 * (5 + self.num_classes)
-        raw_predictions = raw_predictions.reshape(-1, self.cell_resolution, self.cell_resolution, 5 + self.num_classes)
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
+        raw_predictions = torch.permute(raw_predictions, (0, 2, 3, 1))
         boxes = raw_predictions[..., :4]
         objectness = raw_predictions[..., 4]
         classes = raw_predictions[..., 5:]
 
         boxes[..., :2] -= boxes[..., 2:] / 2 # adjust center coords to be top-left coords
-        boxes*= 1/self.cell_resolution# scale to be percent of global image coords
+        boxes*= 1/self.num_cells# scale to be percent of global image coords
         for i in range(boxes.shape[1]):# add offsets for each cell
             for j in range(boxes.shape[2]):
-                boxes[..., i, j, 0] += j * (1/self.cell_resolution)
-                boxes[..., i, j, 1] += i * (1/self.cell_resolution)
+                boxes[..., i, j, 0] += j * (1/self.num_cells)
+                boxes[..., i, j, 1] += i * (1/self.num_cells)
         boxes[..., 2:] += boxes[..., :2] # add width and height to get bottom-right coords
 
         boxes = boxes.reshape(-1, 4)
