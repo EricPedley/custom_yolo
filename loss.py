@@ -60,7 +60,7 @@ class FocalLoss(nn.Module):
         # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
-        class_loss = self.bce(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
+        class_loss = self.mse(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
         total_loss = box_loss + object_loss + class_loss
         if torch.isnan(total_loss):
             print("box loss", box_loss)

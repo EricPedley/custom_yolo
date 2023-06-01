@@ -24,13 +24,12 @@ LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/20
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 200
-NUM_CLASSES = 17
+EPOCHS = 100
+NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
-IMG_DIR = "data/images/test_1"
-LABEL_DIR = "data/labels/test_1"
-IOU_THRESHOLD = 0.90 # iou threshold for nms
+TRAIN_DIRNAME = "train_10"
+IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
 TENSORBOARD_LOGGING = True 
@@ -81,11 +80,9 @@ def main():
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
-    train_dataset = SUASDataset(IMG_DIR, LABEL_DIR, NUM_CLASSES, n_cells = S)
-    # test_dataset = SUASDataset("data/images/tiny_train", "data/labels/tiny_train", NUM_CLASSES, n_cells = S)
-    test_dataset = train_dataset
-    assert len(train_dataset)==4
-    assert len(test_dataset)==4
+    train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    test_dataset_dirname = "train_1"
+    test_dataset = SUASDataset(f"data/images/{test_dataset_dirname}", f"data/labels/{test_dataset_dirname}", NUM_CLASSES, n_cells = S)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = FocalLoss(NUM_CLASSES)

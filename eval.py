@@ -11,7 +11,7 @@ from torchvision.ops import box_iou
 from visualize import display_boxes
 from tqdm import tqdm
 
-def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 0.5, iou_threshold: float = 0.5, visualize=False):
+def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 0.5, iou_threshold: float = 0.5, sampling_ratio=1.0, visualize=False):
     precisions = []
     recalls = []
     if visualize:

@@ -2,9 +2,9 @@
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
 path: /home/holden/code/custom_yolo/data
-train: images/train_2   
-val: images/validation_2
-test: images/test_2
+train: images/train_5
+val: images/validation_5
+test: images/test_5
 
 # Classes
 # The 

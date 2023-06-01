@@ -3,7 +3,7 @@
 import os
 import shutil
 
-percentage = 2
+percentage = 5
 for folder in ("train", "validation", "test"):
     # make folder
     os.mkdir(f"data/images/{folder}_{percentage}")

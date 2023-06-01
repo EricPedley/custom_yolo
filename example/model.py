@@ -109,11 +109,11 @@ class Yolov1(nn.Module):
         # nn.Linear(1024*S*S, 4096),
         # nn.LeakyReLU(0.1),
         # nn.Linear(4096, S*S*(B*5+C))
-
+        intermediate_features = 1024
         return nn.Sequential(
             nn.Flatten(),
-            nn.Linear(1024 * S * S, 496),
+            nn.Linear(1024 * S * S, intermediate_features),
             nn.Dropout(0.0),
             nn.LeakyReLU(0.1),
-            nn.Linear(496, S * S * (C + B * 5)),
+            nn.Linear(intermediate_features, S * S * (C + B * 5)),
         )

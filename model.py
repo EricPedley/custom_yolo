@@ -3,6 +3,7 @@ from itertools import tee
 
 import torch
 import torch.nn as nn
+from torchinfo import summary
 from torchvision.ops import batched_nms 
 import numpy as np
 
@@ -67,31 +68,42 @@ class ConvLayer(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias),
             nn.BatchNorm2d(out_channels),
-            nn.SiLU()
+            nn.LeakyReLU(0.1)
         )
     def forward(self, x):
         return self.conv(x)
     
 class SUASYOLO(nn.Module):
-    def __init__(self, num_classes, img_size=(640, 640)):
+    def __init__(self, num_classes, img_width=640):
         super(SUASYOLO, self).__init__()
         self.num_classes = num_classes
-        feature_depths = [
-            3, 64, 128, 256, 512, 1024, 1024
-        ]
-        self.feature_extraction = nn.Sequential(*flatten([
-            [
-                ConvLayer(in_depth, out_depth, 3, 1, 1),
-                nn.MaxPool2d(2, 2)
-            ]
-         for in_depth, out_depth, in pairwise(feature_depths)
-        ]))
-
-        num_size_reductions = len(feature_depths) - 1
-        self.num_cells = img_size[0] // (2**num_size_reductions) 
+        self.feature_extraction = nn.Sequential(
+            ConvLayer(3, 64, kernel_size=7, stride=2, padding=3), 
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            ConvLayer(64, 192, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            ConvLayer(192, 128, 1, 1, 0),
+            ConvLayer(128, 256, 3, 1, 1),
+            ConvLayer(256, 256, 1, 1, 0),
+            ConvLayer(256, 512, 3, 1, 1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            *flatten([
+                [ConvLayer(512, 256, 1, 1, 0), ConvLayer(256, 512, 3, 1, 1)] for _ in range(4)
+            ]),
+            ConvLayer(512, 512, 1, 1, 0),
+            ConvLayer(512, 1024, 3, 1, 1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            *flatten([
+                [ConvLayer(1024, 512, 1, 1, 0), ConvLayer(512, 1024, 3, 1, 1)] for _ in range(2)
+            ]),
+            ConvLayer(1024, 1024, 3, 1, 1),
+            ConvLayer(1024, 1024, 3, 2, 1),
+            ConvLayer(1024, 1024, 3, 1, 1),
+        )
+        self.num_cells = img_width // 64 
         S = self.num_cells
         C = self.num_classes
-        B = 1
+        B = 1 
         hidden_size = 512
         self.detector = nn.Sequential(
             nn.Flatten(),
@@ -113,10 +125,10 @@ class SUASYOLO(nn.Module):
 
         x = self.feature_extraction(x)
         x = self.detector(x)
-        x = x.reshape(-1, self.num_classes+5, self.num_cells, self.num_cells)
+        x = x.reshape(-1, (self.num_classes+5), self.num_cells, self.num_cells)
         # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
-        x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
+        # x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
         # x = nn.Flatten()(x)
         return x
 
@@ -159,3 +171,8 @@ class SUASYOLO(nn.Module):
         kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
         return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
+    
+if __name__=="__main__":
+    model = SUASYOLO(num_classes=14, img_width=640)
+    input_shape = (1,3,640,640)
+    summary(model, input_shape)
