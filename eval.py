@@ -75,7 +75,8 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
 if __name__=='__main__':
     num_classes = 14
     model = SUASYOLO(num_classes = num_classes).to(DEVICE)
-    dataset = SUASDataset("data/images/test_10", "data/labels/test_10", num_classes, n_cells = model.num_cells)
+    data_folder = "test_10"
+    dataset = SUASDataset(f"data/images/{data_folder}", f"data/labels/{data_folder}", num_classes, n_cells = model.num_cells)
     model.load_state_dict(torch.load("yolo_132.pt"))
     model.eval()
     print(eval_map_mar(model, dataset, visualize=False))
