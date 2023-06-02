@@ -1,4 +1,5 @@
 # Memory Profiling
 1. `pip install memory_profiler`
-2. Decorated functions with @profile
-3. `py -m memory_profiler my_script.py`
+2. `from memory_profiler import profile`
+3. Decorate functions with `@profile`
+4. Run the script normally
