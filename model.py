@@ -103,13 +103,13 @@ class SUASYOLO(nn.Module):
         self.num_cells = img_width // 64 
         S = self.num_cells
         C = self.num_classes
-        B = 1 
         hidden_size = 512
         self.detector = nn.Sequential(
             nn.Flatten(),
             nn.Linear(1024 * S*S, hidden_size),
             nn.LeakyReLU(0.1),
-            nn.Linear(hidden_size, S * S * (C + B * 5)),
+            nn.Dropout(0.5),
+            nn.Linear(hidden_size, S * S * (C + 5)),
             # nn.Conv2d(feature_depths[-1], hidden_size, kernel_size=3, stride=1, padding=1),
             # nn.Conv2d(hidden_size, 5+num_classes, kernel_size=3, stride=1, padding=1),
         )
