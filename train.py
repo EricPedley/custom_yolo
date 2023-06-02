@@ -38,7 +38,7 @@ TENSORBOARD_LOGGING = True
 if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
-def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset):
+def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset, train_dataset: SUASDataset):
     loop = tqdm(range(epochs), leave=True)
     for epoch_no in loop:
         mean_loss = []
@@ -63,13 +63,16 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
                 writer.add_scalar('Class Loss/train', class_loss.item(), step_no)
                 if epoch_no % 4 == 0 and batch_idx == 0:
-                    mAP, mAR = eval_map_mar(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    train_mAP, train_mAR = eval_map_mar(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    val_mAP, val_mAR = eval_map_mar(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     # if mAP>0.9:
                     #     torch.save(model.state_dict(), f"overfit.pt")
                     #     break
-                    writer.add_scalar('mAP/train', mAP, step_no)
-                    writer.add_scalar('mAR/train', mAR, step_no) 
+                    writer.add_scalar('mAP/train', train_mAP, step_no)
+                    writer.add_scalar('mAR/train', train_mAR, step_no) 
 
+                    writer.add_scalar('mAP/validation', val_mAP, step_no)
+                    writer.add_scalar('mAR/validation', val_mAR, step_no) 
 
 
 
@@ -83,6 +86,7 @@ def main():
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_subset = SUASDataset(f"data/images/train_1", f"data/labels/train_1", NUM_CLASSES, n_cells = S)
     val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
     test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
 
@@ -94,7 +98,7 @@ def main():
     start = time.perf_counter()
     if TENSORBOARD_LOGGING:
         print(f"Starting training run {num_prev_runs}")
-    train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS, val_dataset)
+    train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS, val_dataset, train_subset)
     end = time.perf_counter()
     print(f"Training took {end-start} seconds")
     model.eval()
