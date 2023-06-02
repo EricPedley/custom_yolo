@@ -29,6 +29,7 @@ NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
 TRAIN_DIRNAME = "train_10"
+REDUCED_TRAIN_DIRNAME = "train_1"
 VAL_DIRNAME = "validation_10"
 TEST_DIRNAME = "test_10"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
@@ -86,7 +87,7 @@ def main():
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    train_subset = SUASDataset(f"data/images/train_1", f"data/labels/train_1", NUM_CLASSES, n_cells = S)
+    train_subset = SUASDataset(f"data/images/{REDUCED_TRAIN_DIRNAME}", f"data/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
     val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
     test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
 
