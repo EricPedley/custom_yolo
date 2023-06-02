@@ -163,10 +163,11 @@ class SUASYOLO(nn.Module):
         raw_predictions = self.forward(x)
 
         boxes, objectness, classes = self.process_predictions(raw_predictions)
+        batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches).to(x.device)
+        batch_indices = batch_indices[objectness > conf_threshold]
         boxes = boxes[objectness > conf_threshold]
         classes = classes[objectness > conf_threshold]
         objectness = objectness[objectness > conf_threshold]
-        batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches)
 
         kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
