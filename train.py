@@ -29,6 +29,8 @@ NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
 TRAIN_DIRNAME = "train_10"
+VAL_DIRNAME = "validation_1"
+TEST_DIRNAME = "test_10"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -36,7 +38,7 @@ TENSORBOARD_LOGGING = True
 if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
-def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, test_dataset):
+def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset):
     loop = tqdm(range(epochs), leave=True)
     for epoch_no in loop:
         mean_loss = []
@@ -61,7 +63,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
                 writer.add_scalar('Class Loss/train', class_loss.item(), step_no)
                 if epoch_no % 4 == 0 and batch_idx == 0:
-                    mAP, mAR = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    mAP, mAR = eval_map_mar(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     # if mAP>0.9:
                     #     torch.save(model.state_dict(), f"overfit.pt")
                     #     break
@@ -81,16 +83,18 @@ def main():
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
     train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    test_dataset_dirname = "train_1"
-    test_dataset = SUASDataset(f"data/images/{test_dataset_dirname}", f"data/labels/{test_dataset_dirname}", NUM_CLASSES, n_cells = S)
+    val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
+    test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
+
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     loss_fn = FocalLoss(NUM_CLASSES)
 
     start = time.perf_counter()
     if TENSORBOARD_LOGGING:
         print(f"Starting training run {num_prev_runs}")
-    train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS, test_dataset)
+    train_fn(model, optimizer, loss_fn, train_loader, DEVICE, EPOCHS, val_dataset)
     end = time.perf_counter()
     print(f"Training took {end-start} seconds")
     model.eval()
@@ -129,7 +133,7 @@ def main():
     else:
         fig.show()
         plt.show()
-    torch.save(model.state_dict(), "custom_yolo.pt")
+    torch.save(model.state_dict(), f"yolo_{num_prev_runs}.pt")
 
 
 if __name__ == "__main__":
