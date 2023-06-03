@@ -24,14 +24,14 @@ LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/20
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 100
+EPOCHS = 200
 NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
-TRAIN_DIRNAME = "train_10"
-REDUCED_TRAIN_DIRNAME = "train_1"
-VAL_DIRNAME = "validation_10"
-TEST_DIRNAME = "test_10"
+TRAIN_DIRNAME = "test_1"
+REDUCED_TRAIN_DIRNAME = "test_1"
+VAL_DIRNAME = "test_1"
+TEST_DIRNAME = "test_1"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -86,10 +86,10 @@ def main():
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
-    train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    train_subset = SUASDataset(f"data/images/{REDUCED_TRAIN_DIRNAME}", f"data/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
-    test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME.split('_')[0]}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_subset = SUASDataset(f"data/images/{REDUCED_TRAIN_DIRNAME.split('_')[0]}", f"data/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME.split('_')[0]}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
+    test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME.split('_')[0]}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 

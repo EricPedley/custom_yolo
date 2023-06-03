@@ -10,8 +10,9 @@ class SUASDataset(torch.utils.data.Dataset):
         self.label_dir = label_dir
         self.n_class = n_class
         self.n_cells = n_cells
-        self.imgs = list(sorted(os.listdir(img_dir)))
+        # self.imgs = list(sorted(os.listdir(img_dir)))
         self.labels = list(sorted(os.listdir(label_dir)))
+        self.imgs = [label.replace(".txt", ".png") for label in self.labels]
 
     def __getitem__(self, idx) -> "tuple(torch.Tensor, torch.Tensor)":
         img_path = os.path.join(self.img_dir, self.imgs[idx])
