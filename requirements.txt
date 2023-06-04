@@ -2,3 +2,5 @@ torch
 torchinfo
 ultralytics
 tensorboard
+tqdm
+memory_profiler
