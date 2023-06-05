@@ -15,7 +15,7 @@ class FocalLoss(nn.Module):
         self.num_classes = num_classes
         self.mse = nn.MSELoss(reduction="sum")
         self.crossentropy = nn.CrossEntropyLoss(reduction="sum")
-        self.bce = nn.BCEWithLogitsLoss(reduction="sum")
+        self.bce = nn.BCELoss(reduction="sum")
         self.gamma = gamma
         self.alpha = alpha
 
@@ -54,7 +54,7 @@ class FocalLoss(nn.Module):
 
         # predictions[..., 5:] = torch.softmax(predictions[..., 5:], dim=1)
 
-        # pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])
+        # pt = predictions[..., 5:][contains_obj].where(targets[..., 5:][contains_obj] == 1, 1 - predictions[..., 5:][contains_obj])`
         
         # class_loss = -self.alpha*(1-pt)**self.gamma * torch.log(pt+1e-8)
         # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)

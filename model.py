@@ -144,7 +144,7 @@ class SUASYOLO(nn.Module):
         x = self.detector(x)
         x = x.reshape(-1, (self.num_classes+5), self.num_cells, self.num_cells)
         x[:, :2, :, :] = self.sigmoid(x[:, :2, :, :]) # box offset (doesn't include dimensions) 
-        # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
+        x[:,4,:,:] = self.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
         
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
