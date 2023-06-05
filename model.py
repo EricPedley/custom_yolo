@@ -118,17 +118,18 @@ class SUASYOLO(nn.Module):
         C = self.num_classes
         hidden_size=512
         self.detector = nn.Sequential(
-            # nn.Flatten(),
-            # nn.Linear(1024 * S*S, hidden_size),
-            # nn.LeakyReLU(0.1),
-            # nn.Dropout(0.5),
-            # nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 5)),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
+            nn.Flatten(),
+            nn.Linear(1024 * S*S, hidden_size),
+            nn.LeakyReLU(0.1),
+            nn.Dropout(0.5),
+            nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 5)),
+            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            # nn.Conv2d(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
         )
         self.sigmoid = nn.Sigmoid()
+        # self.softmax = nn.Softmax(dim=1)
 
 
 
@@ -144,7 +145,9 @@ class SUASYOLO(nn.Module):
         x = x.reshape(-1, (self.num_classes+5), self.num_cells, self.num_cells)
         x[:, :2, :, :] = self.sigmoid(x[:, :2, :, :]) # box offset (doesn't include dimensions) 
         # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
-        # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
+        
+        # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
+        # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
         # x = nn.Flatten()(x)
         return x

@@ -15,7 +15,7 @@ class FocalLoss(nn.Module):
         self.num_classes = num_classes
         self.mse = nn.MSELoss(reduction="sum")
         self.crossentropy = nn.CrossEntropyLoss(reduction="sum")
-        self.bce = nn.BCELoss()
+        self.bce = nn.BCEWithLogitsLoss(reduction="sum")
         self.gamma = gamma
         self.alpha = alpha
 
@@ -37,10 +37,10 @@ class FocalLoss(nn.Module):
         objectness_predictions = predictions[..., 4]
         contains_obj = objectness_targets == 1
         
-        positive_object_loss = self.mse(objectness_predictions[contains_obj], objectness_targets[contains_obj])
+        positive_object_loss = self.bce(objectness_predictions[contains_obj], objectness_targets[contains_obj])
 
         no_obj = targets[..., 4] == 0
-        negative_object_loss = self.mse(objectness_predictions[no_obj], objectness_targets[no_obj])
+        negative_object_loss = self.bce(objectness_predictions[no_obj], objectness_targets[no_obj])
 
         if not contains_obj.any():
             return (torch.tensor(0), negative_object_loss, torch.tensor(0))
