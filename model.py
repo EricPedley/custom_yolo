@@ -61,6 +61,23 @@ class BottleNeck(nn.Module):
     def forward(self, x):
         skip_connection = x if self.in_channels == self.out_channels else self.shortcut_conv(x)
         return self.silu(skip_connection+self.expand(self.shrink(x)))
+    
+class ResBlock(nn.Module):
+    def __init__(self, channels, num_repeats):
+        super(ResBlock, self).__init__()
+        self.convs = nn.ModuleList(
+            [
+                nn.Sequential(
+                    ConvLayer(channels, channels//2, kernel_size=1, stride=1, padding=0),
+                    ConvLayer(channels//2, channels, kernel_size=3, stride=1, padding=1)
+                )
+                for _ in range(num_repeats)
+            ]
+        )
+    def forward(self, x):
+        for conv in self.convs:
+            x = conv(x) + x
+        return x
 
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
@@ -78,43 +95,40 @@ class SUASYOLO(nn.Module):
         super(SUASYOLO, self).__init__()
         self.num_classes = num_classes
         self.feature_extraction = nn.Sequential(
-            ConvLayer(3, 64, kernel_size=7, stride=2, padding=3), 
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            ConvLayer(64, 192, kernel_size=3, stride=1, padding=1),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            ConvLayer(192, 128, 1, 1, 0),
-            ConvLayer(128, 256, 3, 1, 1),
-            ConvLayer(256, 256, 1, 1, 0),
-            ConvLayer(256, 512, 3, 1, 1),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            *flatten([
-                [ConvLayer(512, 256, 1, 1, 0), ConvLayer(256, 512, 3, 1, 1)] for _ in range(4)
-            ]),
-            ConvLayer(512, 512, 1, 1, 0),
-            ConvLayer(512, 1024, 3, 1, 1),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            *flatten([
-                [ConvLayer(1024, 512, 1, 1, 0), ConvLayer(512, 1024, 3, 1, 1)] for _ in range(2)
-            ]),
-            ConvLayer(1024, 1024, 3, 2, 1),
-            ConvLayer(1024, 1024, 3, 1, 1),
-            ConvLayer(1024, 1024, 3, 1, 1),
+            ConvLayer(3, 32, kernel_size=3, stride=1, padding=1), 
+            ConvLayer(32, 64, kernel_size=3, stride=2, padding=1),
+            ResBlock(64, num_repeats=1),
+            ConvLayer(64, 128, kernel_size=3, stride=2, padding=1),
+            ResBlock(128, num_repeats=2),
+            ConvLayer(128, 256, kernel_size=3, stride=2, padding=1),
+            ResBlock(256, num_repeats=8),
+            ConvLayer(256, 512, kernel_size=3, stride=2, padding=1),
+            ResBlock(512, num_repeats=8),
+            ConvLayer(512, 1024, kernel_size=3, stride=2, padding=1),
+            ResBlock(1024, num_repeats=4),
+            ConvLayer(1024, 1024, kernel_size=3, stride=2, padding=1)
         )
-        S = img_width // 64 # 640 // 32 = 20 
+        # automatically calculate number of stride 2 convs in feature extraction
+        num_size_reductions = 0
+        for layer in self.feature_extraction:
+            if isinstance(layer, ConvLayer) and layer.conv[0].stride == (2, 2):
+                num_size_reductions += 1
+        S = img_width // (2**num_size_reductions) # 640 // 32 = 20 
         self.num_cells = S 
         C = self.num_classes
         hidden_size=512
         self.detector = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(1024 * S*S, hidden_size),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.5),
-            nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 5)),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # ConvLayer(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
+            # nn.Flatten(),
+            # nn.Linear(1024 * S*S, hidden_size),
+            # nn.LeakyReLU(0.1),
+            # nn.Dropout(0.5),
+            # nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 5)),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
         )
+        self.sigmoid = nn.Sigmoid()
 
 
 
@@ -128,6 +142,7 @@ class SUASYOLO(nn.Module):
         x = self.feature_extraction(x)
         x = self.detector(x)
         x = x.reshape(-1, (self.num_classes+5), self.num_cells, self.num_cells)
+        x[:, :2, :, :] = self.sigmoid(x[:, :2, :, :]) # box offset (doesn't include dimensions) 
         # x[:,4,:,:] = torch.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
         # x[:,5:,:,:] = torch.softmax(x[:,5:,:,:], dim=1) # class predictions
         # x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
