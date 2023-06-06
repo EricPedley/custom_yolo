@@ -28,20 +28,30 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
             torch.tensor(img).type(torch.FloatTensor).permute(2,0,1).unsqueeze(0).to(DEVICE),
             conf_threshold=conf_threshold
         )
-        pred_boxes = pred_boxes.to("cpu")
+        pred_coords = pred_boxes.to("cpu")
         if visualize:
-            display_boxes(boxes, classes[objectness>0], objectness, (0,255,0),3,img)
-            display_boxes(pred_boxes, pred_classes, pred_objectness, (0,0,255),1,img)
+            display_boxes(boxes, classes[objectness>0], objectness, (0,255,0),3,img, centers_only=True)
+            display_boxes(pred_boxes, pred_classes, pred_objectness, (0,0,255),1,img, centers_only=True)
             ax.imshow(img)
             ax.axis("off")
-        ious = box_iou(boxes, pred_boxes)
+        # get number of boxes where the centers are closer than 50 * iou_threshold pixels
+        distances_list = []
+        for box in pred_boxes:
+            x1, y1 = (box*640).to("cpu").type(torch.int).tolist()
+            for box2 in boxes:
+                x2, y2 = (box2*640).to("cpu").type(torch.int).tolist()
+            distances_list.append(np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2])))
+        distances = np.array(distances_list) 
+        true_positives = distances[distances < 50 * iou_threshold]
+
+        # ious = box_iou(boxes, pred_boxes)
         # filter by iou > threshold
-        ious = ious[ious > iou_threshold]
+        # true_positives = ious[ious > iou_threshold]
         if len(pred_boxes)>0:
-            precision = len(ious) / len(pred_boxes)
+            precision = len(true_positives) / len(pred_boxes)
             precisions.append(precision)
         if len(boxes)>0:
-            recall = len(ious) / len(boxes)
+            recall = len(true_positives) / len(boxes)
             recalls.append(recall)
     model.train(mode=was_training)
     if visualize:

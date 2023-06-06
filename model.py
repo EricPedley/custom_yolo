@@ -122,7 +122,7 @@ class SUASYOLO(nn.Module):
             nn.Linear(1024 * S*S, hidden_size),
             nn.LeakyReLU(0.1),
             nn.Dropout(0.5),
-            nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 5)),
+            nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 3)),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
@@ -142,9 +142,9 @@ class SUASYOLO(nn.Module):
 
         x = self.feature_extraction(x)
         x = self.detector(x)
-        x = x.reshape(-1, (self.num_classes+5), self.num_cells, self.num_cells)
+        x = x.reshape(-1, (self.num_classes+3), self.num_cells, self.num_cells)
         x[:, :2, :, :] = self.sigmoid(x[:, :2, :, :]) # box offset (doesn't include dimensions) 
-        x[:,4,:,:] = self.sigmoid(x[:,4,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
+        x[:,2,:,:] = self.sigmoid(x[:,2,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
         
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
@@ -157,19 +157,19 @@ class SUASYOLO(nn.Module):
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
         raw_predictions = torch.transpose(raw_predictions, 1, 3)
-        boxes = raw_predictions[..., :4]
-        objectness = raw_predictions[..., 4]
-        classes = raw_predictions[..., 5:]
+        boxes = raw_predictions[..., :2]
+        objectness = raw_predictions[..., 2]
+        classes = raw_predictions[..., 3:]
 
-        boxes[..., :2] -= boxes[..., 2:] / 2 # adjust center coords to be top-left coords
+        # boxes[..., :2] -= boxes[..., 2:] / 2 # adjust center coords to be top-left coords
         boxes*= 1/self.num_cells# scale to be percent of global image coords
         for i in range(boxes.shape[1]):# add offsets for each cell
             for j in range(boxes.shape[2]):
                 boxes[..., i, j, 0] += j * (1/self.num_cells)
                 boxes[..., i, j, 1] += i * (1/self.num_cells)
-        boxes[..., 2:] += boxes[..., :2] # add width and height to get bottom-right coords
+        # boxes[..., 2:] += boxes[..., :2] # add width and height to get bottom-right coords
 
-        boxes = boxes.reshape(-1, 4)
+        boxes = boxes.reshape(-1, 2)
         objectness = objectness.reshape(-1)
         classes = classes.reshape(-1, self.num_classes)
 
@@ -189,9 +189,10 @@ class SUASYOLO(nn.Module):
         classes = classes[objectness > conf_threshold]
         objectness = objectness[objectness > conf_threshold]
 
-        kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
+        # kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
-        return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
+        # return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
+        return boxes, classes, objectness
     
 if __name__=="__main__":
     model = SUASYOLO(num_classes=14, img_width=640)

@@ -29,19 +29,19 @@ class SUASDataset(torch.utils.data.Dataset):
 
         num_cells = self.n_cells
 
-        label_matrix = torch.zeros((num_cells, num_cells, self.n_class + 5))
+        label_matrix = torch.zeros((num_cells, num_cells, self.n_class + 3))
         for box in boxes:
             class_no, x, y, w, h = box
             x_cell, y_cell = int(x * num_cells), int(y * num_cells)
             # convert x,y,w,h to be relative to cell
             x, y = (x * num_cells) - x_cell, (y * num_cells) - y_cell
-            w, h = w * num_cells, h * num_cells
+            # w, h = w * num_cells, h * num_cells
             if label_matrix[y_cell, x_cell, 4] == 1: # if cell already has an object
                 # raise NotImplementedError("Need to support more than one object per cell") 
                 continue
-            label_matrix[y_cell, x_cell, :4] = torch.tensor([x, y, w, h])
-            label_matrix[y_cell, x_cell, 4] = 1
-            label_matrix[y_cell, x_cell, int(class_no) + 5] = 1
+            label_matrix[y_cell, x_cell, :2] = torch.tensor([x, y])
+            label_matrix[y_cell, x_cell, 2] = 1
+            label_matrix[y_cell, x_cell, int(class_no) + 3] = 1
 
         return img, label_matrix.permute(2, 1, 0)
         

@@ -30,8 +30,8 @@ NUM_WORKERS = 4
 PIN_MEMORY = True
 TRAIN_DIRNAME = "train_10"
 REDUCED_TRAIN_DIRNAME = "train_1"
-VAL_DIRNAME = "validation_1"
-TEST_DIRNAME = "test_1"
+VAL_DIRNAME = "validation_10"
+TEST_DIRNAME = "test_10"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -105,11 +105,11 @@ def main():
     model.eval()
     # create mAP vs mAR plot and write to tensorboard
 
-    fig = create_mAP_mAR_graph(model, train_dataset) 
-    visualizations = get_display_figures(model, train_dataset, n=min(5, BATCH_SIZE))
+    mAP_mAR_fig = create_mAP_mAR_graph(model, train_dataset) 
+    visualizations = get_display_figures(model, train_dataset, n=min(5, BATCH_SIZE), centers_only=True)
 
     if TENSORBOARD_LOGGING:
-        writer.add_figure("mAP vs mAR", fig)
+        writer.add_figure("mAP vs mAR", mAP_mAR_fig)
         for i, fig in enumerate(visualizations):
             writer.add_figure(f"Visualization {i}", fig)
 

@@ -36,19 +36,25 @@ from torchsummary import summary
 #             class_pred = classes.argmax()
 #             cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
-def display_boxes(boxes: torch.Tensor, classes: torch.Tensor, objectness: torch.Tensor, color, thickness, img):
+def display_boxes(boxes: torch.Tensor, classes: torch.Tensor, objectness: torch.Tensor, color, thickness, img, centers_only=False):
 
     for box, classes, objectness_score in zip(boxes, classes, objectness):
-        x1, y1, x2, y2 = (box*640).to("cpu").type(torch.int).tolist()
-        if x1-x2 == 0 or y1-y2 == 0:
-            continue
-        cv.rectangle(img, (x1, y1), (x2, y2), color, thickness)
-        # draw label
         class_pred = classes.argmax().item()
-        cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-        cv.putText(img, f'{objectness_score.item():.2f}', (x1+10, y2+20), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        if centers_only:
+            x, y = (box*640).to("cpu").type(torch.int).tolist()
+            cv.circle(img, (x, y), 5, color, thickness)
+            cv.putText(img, str(class_pred), (x, y - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            cv.putText(img, f'{objectness_score.item():.2f}', (x+10, y+20), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        else:
+            x1, y1, x2, y2 = (box*640).to("cpu").type(torch.int).tolist()
+            if x1-x2 == 0 or y1-y2 == 0:
+                continue
+            cv.rectangle(img, (x1, y1), (x2, y2), color, thickness)
+            # draw label
+            cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            cv.putText(img, f'{objectness_score.item():.2f}', (x1+10, y2+20), cv.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5):
+def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5, centers_only=False):
     figures = []
     for i in range(n):
         img, label = dataset[i]
@@ -57,9 +63,9 @@ def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5):
         boxes = boxes[objectness > 0]
         classes = classes[objectness > 0]
         objectness = objectness[objectness > 0]
-        display_boxes(boxes, classes, objectness, (0,255,0),3,img)
+        display_boxes(boxes, classes, objectness, (0,255,0),3,img, centers_only=centers_only)
         pred_boxes, pred_classes, pred_conf = model.predict(torch.tensor(img).type(torch.FloatTensor).permute(2, 0, 1).unsqueeze(0).to(DEVICE))
-        display_boxes(pred_boxes, pred_classes, pred_conf, (0,0,255),1,img)
+        display_boxes(pred_boxes, pred_classes, pred_conf, (0,0,255),1,img, centers_only=centers_only)
         fig = plt.figure()
         plt.title(f"Boxes for image {i}")
         plt.imshow(img)

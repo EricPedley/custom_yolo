@@ -29,17 +29,17 @@ class FocalLoss(nn.Module):
         assert predictions.shape[0] == targets.shape[0]
         predictions = predictions.transpose(1, 3)
         targets = targets.transpose(1, 3)
-        predictions = predictions.reshape(-1, 5 + self.num_classes)
-        targets = targets.reshape(-1, 5 + self.num_classes) 
+        predictions = predictions.reshape(-1, 3 + self.num_classes)
+        targets = targets.reshape(-1, 3 + self.num_classes) 
         # object loss (whether or not there was an object in the tile)
         # normally you weigh the loss differently for false positives vs false negatives
-        objectness_targets = targets[..., 4]
-        objectness_predictions = predictions[..., 4]
+        objectness_targets = targets[..., 2]
+        objectness_predictions = predictions[..., 2]
         contains_obj = objectness_targets == 1
         
         positive_object_loss = self.bce(objectness_predictions[contains_obj], objectness_targets[contains_obj])
 
-        no_obj = targets[..., 4] == 0
+        no_obj = ~contains_obj  
         negative_object_loss = self.bce(objectness_predictions[no_obj], objectness_targets[no_obj])
 
         if not contains_obj.any():
@@ -49,8 +49,8 @@ class FocalLoss(nn.Module):
         
         # box loss
         box_coord_loss = self.mse(predictions[..., :2][contains_obj], targets[..., :2][contains_obj])# x and y loss
-        box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
-        box_loss = LAMBDA_COORD * (box_coord_loss + box_size_loss)
+        # box_size_loss = self.mse(torch.sign(predictions[..., 2:4][contains_obj]) * torch.sqrt(torch.abs(predictions[..., 2:4][contains_obj])), torch.sqrt(targets[..., 2:4][contains_obj]))# w and h loss
+        box_loss = LAMBDA_COORD * (box_coord_loss)# + box_size_loss)
 
         # predictions[..., 5:] = torch.softmax(predictions[..., 5:], dim=1)
 
@@ -60,7 +60,7 @@ class FocalLoss(nn.Module):
         # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
-        class_loss = self.mse(predictions[..., 5:][contains_obj], targets[..., 5:][contains_obj])
+        class_loss = self.mse(predictions[..., 3:][contains_obj], targets[..., 3:][contains_obj])
         total_loss = box_loss + object_loss + class_loss
         if torch.isnan(total_loss):
             print("box loss", box_loss)
