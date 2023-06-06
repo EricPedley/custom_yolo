@@ -40,7 +40,7 @@ def eval_map_mar(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
             x1, y1 = (box*640).to("cpu").type(torch.int).tolist()
             for box2 in boxes:
                 x2, y2 = (box2*640).to("cpu").type(torch.int).tolist()
-            distances_list.append(np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2])))
+                distances_list.append(np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2])))
         distances = np.array(distances_list) 
         true_positives = distances[distances < 50 * iou_threshold]
 
@@ -85,12 +85,12 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
 if __name__=='__main__':
     num_classes = 14
     model = SUASYOLO(num_classes = num_classes).to(DEVICE)
-    data_folder = "test_10"
-    dataset = SUASDataset(f"data/images/{data_folder}", f"data/labels/{data_folder}", num_classes, n_cells = model.num_cells)
-    model.load_state_dict(torch.load("yolo_132.pt"))
+    data_folder = "test_1"
+    dataset = SUASDataset(f"data/images/{data_folder.split('_')[0]}", f"data/labels/{data_folder}", num_classes, n_cells = model.num_cells)
+    model.load_state_dict(torch.load("weights/yolo_175.pt"))
     model.eval()
-    print(eval_map_mar(model, dataset, visualize=False))
-    fig = create_mAP_mAR_graph(model, dataset)
-    fig.show()
-    plt.show()
+    print(eval_map_mar(model, dataset, visualize=True))
+    # fig = create_mAP_mAR_graph(model, dataset)
+    # fig.show()
+    # plt.show()
 
