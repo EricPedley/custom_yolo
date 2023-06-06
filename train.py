@@ -38,11 +38,14 @@ CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 TENSORBOARD_LOGGING = True 
 if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
+    os.makedirs(f"weights/{num_prev_runs}")
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset, train_dataset: SUASDataset):
     loop = tqdm(range(epochs), leave=True)
     for epoch_no in loop:
         mean_loss = []
+        if epoch_no%10 == 0:
+            torch.save(model.state_dict(), f"weights/{num_prev_runs}/epoch_{epoch_no}.pt")
 
         for batch_idx, (x, y) in enumerate(dataloader):
             x: torch.Tensor = x.to(device)
@@ -138,7 +141,7 @@ def main():
     else:
         fig.show()
         plt.show()
-    torch.save(model.state_dict(), f"yolo_{num_prev_runs}.pt")
+    torch.save(model.state_dict(), f"weights/{num_prev_runs}/final.pt")
 
 
 if __name__ == "__main__":
