@@ -9,17 +9,20 @@
 # where the coordinates are relative to the image size
 import os
 
-os.makedirs("det_data/labels/train", exist_ok=True)
-os.makedirs("det_data/labels/validation", exist_ok=True)
-os.makedirs("det_data/labels/test", exist_ok=True)
+INPUT_FOLDER = "multilabel_color_data"
+OUTPUT_FOLDER = "data_v2"
+
+os.makedirs(f"{OUTPUT_FOLDER}/labels/train", exist_ok=True)
+os.makedirs(f"{OUTPUT_FOLDER}/labels/validation", exist_ok=True)
+os.makedirs(f"{OUTPUT_FOLDER}/labels/test", exist_ok=True)
 
 for split in ["train", "validation", "test"]:
-    for file_name in os.listdir(f"data/labels/{split}"):
-        file_contents = open(f"data/labels/{split}/{file_name}").read().split("\n")
+    for file_name in os.listdir(f"{INPUT_FOLDER}/labels/{split}"):
+        file_contents = open(f"{INPUT_FOLDER}/labels/{split}/{file_name}").read().split("\n")
         file_contents = [line for line in file_contents if line != ""]
         file_contents = [line.split(" ") for line in file_contents]
-        with open(f"det_data/labels/{split}/{file_name}", "w") as f:
-            for class_no, *polygon_coords in file_contents:
+        with open(f"{OUTPUT_FOLDER}/labels/{split}/{file_name}", "w") as f:
+            for shape_class, alphanumeric, shape_color, letter_color, *polygon_coords in file_contents:
                 polygon_coords = [float(coord) for coord in polygon_coords]
                 x_coords = polygon_coords[::2]
                 y_coords = polygon_coords[1::2]
@@ -31,4 +34,4 @@ for split in ["train", "validation", "test"]:
                 y_center = (y_min + y_max) / 2
                 width = x_max - x_min
                 height = y_max - y_min
-                f.write(f"{class_no} {x_center} {y_center} {width} {height}\n")
+                f.write(f"{shape_class} {alphanumeric} {shape_color} {letter_color} {x_center} {y_center} {width} {height}\n")

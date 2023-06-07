@@ -2,9 +2,11 @@ import torch
 import os
 import cv2 as cv
 
+alphanumerics = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 class SUASDataset(torch.utils.data.Dataset):
     def __init__(
-        self, img_dir, label_dir, n_class, n_cells=7
+        self, img_dir, label_dir, n_class, n_cells
     ):
         self.img_dir = img_dir
         self.label_dir = label_dir
@@ -20,18 +22,21 @@ class SUASDataset(torch.utils.data.Dataset):
         boxes = []
         with open(label_path) as f:
             for line in f:
-                class_no, *box_dims = line.split(" ")
-                class_no = int(class_no)
-                boxes.append([class_no, *[float(dim) for dim in box_dims]])
+                shape_class, letter_class, shape_color, letter_color, *box_dims = line.split(" ")
+                shape_class = int(shape_class)
+                letter_class = alphanumerics.index(letter_class) if letter_class != "N/A" else -1
+                shape_color = list(map(int, shape_color.split(":"))) if shape_color != "N/A" else [-1, -1, -1]
+                letter_color = list(map(int, letter_color.split(":"))) if letter_color != "N/A" else [-1, -1, -1]
+                boxes.append([shape_class, letter_class, *shape_color, *letter_color, *[float(dim) for dim in box_dims]])
         boxes = torch.tensor(boxes)
         img = torch.tensor(cv.imread(img_path)).type(torch.FloatTensor).permute(2, 0, 1)
         #TODO apply transformations here
 
         num_cells = self.n_cells
 
-        label_matrix = torch.zeros((num_cells, num_cells, self.n_class + 3))
+        label_matrix = torch.zeros((num_cells, num_cells, 3 + 6 + self.n_class + len(alphanumerics)), dtype=torch.float32)
         for box in boxes:
-            class_no, x, y, w, h = box
+            class_no, letter_no, shape_r, shape_g, shape_b, letter_r, letter_g, letter_b, x, y, w, h = box
             x_cell, y_cell = int(x * num_cells), int(y * num_cells)
             # convert x,y,w,h to be relative to cell
             x, y = (x * num_cells) - x_cell, (y * num_cells) - y_cell
@@ -41,7 +46,10 @@ class SUASDataset(torch.utils.data.Dataset):
                 continue
             label_matrix[y_cell, x_cell, :2] = torch.tensor([x, y])
             label_matrix[y_cell, x_cell, 2] = 1
-            label_matrix[y_cell, x_cell, int(class_no) + 3] = 1
+            label_matrix[y_cell, x_cell, 3:6] = torch.tensor([shape_r, shape_g, shape_b])/255.0
+            label_matrix[y_cell, x_cell, 6:9] = torch.tensor([letter_r, letter_g, letter_b])/255.0
+            label_matrix[y_cell, x_cell, int(class_no) + 3 + 6] = 1
+            label_matrix[y_cell, x_cell, int(letter_no) + 3 + 6 + self.n_class] = 1
 
         return img, label_matrix.permute(2, 1, 0)
         

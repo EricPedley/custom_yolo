@@ -122,7 +122,7 @@ class SUASYOLO(nn.Module):
             nn.Linear(1024 * S*S, hidden_size),
             nn.LeakyReLU(0.1),
             nn.Dropout(0.5),
-            nn.Linear(hidden_size, (self.num_cells ** 2) * (C + 3)),
+            nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
             # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
@@ -142,10 +142,15 @@ class SUASYOLO(nn.Module):
 
         x = self.feature_extraction(x)
         x = self.detector(x)
-        x = x.reshape(-1, (self.num_classes+3), self.num_cells, self.num_cells)
+        x = x.reshape(-1, (3 + 6 + self.num_classes + 36), self.num_cells, self.num_cells)
         x[:, :2, :, :] = self.sigmoid(x[:, :2, :, :]) # box offset (doesn't include dimensions) 
         x[:,2,:,:] = self.sigmoid(x[:,2,:,:]) # objectness (empirically, applying the sigmoid here actually makes the mAP slightly  worse)
-        
+        x[:,3:6,:,:] = self.sigmoid(x[:,3:6,:,:]) # shape color
+        x[:,6:9,:,:] = self.sigmoid(x[:,6:9,:,:]) # letter color
+
+        x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
+        # x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
+
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = torch.sigmoid(x[:,5:,:,:]) # class predictions
@@ -159,7 +164,10 @@ class SUASYOLO(nn.Module):
         raw_predictions = torch.transpose(raw_predictions, 1, 3)
         boxes = raw_predictions[..., :2]
         objectness = raw_predictions[..., 2]
-        classes = raw_predictions[..., 3:]
+        shape_colors = raw_predictions[..., 3:6]
+        letter_colors = raw_predictions[..., 6:9]
+        shape_class_preds = raw_predictions[..., 9:9+self.num_classes]
+        letter_class_preds = raw_predictions[..., 9+self.num_classes:]
 
         # boxes[..., :2] -= boxes[..., 2:] / 2 # adjust center coords to be top-left coords
         boxes*= 1/self.num_cells# scale to be percent of global image coords
@@ -171,9 +179,12 @@ class SUASYOLO(nn.Module):
 
         boxes = boxes.reshape(-1, 2)
         objectness = objectness.reshape(-1)
-        classes = classes.reshape(-1, self.num_classes)
+        shape_colors = shape_colors.reshape(-1, 3)
+        letter_colors = letter_colors.reshape(-1, 3)
+        shape_class_preds = shape_class_preds.reshape(-1, self.num_classes)
+        letter_class_preds = letter_class_preds.reshape(-1, 36)
 
-        return boxes, objectness, classes
+        return boxes, objectness, shape_colors, letter_colors, shape_class_preds, letter_class_preds 
 
     def predict(self, x: torch.Tensor, conf_threshold = 0.5, iou_threshold=0.5, max_preds = 10) -> "tuple[torch.Tensor, torch.Tensor, torch.Tensor]":
         '''
@@ -182,7 +193,7 @@ class SUASYOLO(nn.Module):
         n_batches = x.shape[0]
         raw_predictions = self.forward(x)
 
-        boxes, objectness, classes = self.process_predictions(raw_predictions)
+        boxes, objectness, _shape_colors, _letter_colors, classes, _letter_classes = self.process_predictions(raw_predictions)
         batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches).to(x.device)
         batch_indices = batch_indices[objectness > conf_threshold]
         boxes = boxes[objectness > conf_threshold]

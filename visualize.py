@@ -59,7 +59,7 @@ def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5, centers_only
     for i in range(n):
         img, label = dataset[i]
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
-        boxes, objectness, classes = model.process_predictions(label.unsqueeze(0))
+        boxes, objectness, _shape_colors, _letter_colors, classes, _letter_classes = model.process_predictions(label.unsqueeze(0))
         boxes = boxes[objectness > 0]
         classes = classes[objectness > 0]
         objectness = objectness[objectness > 0]

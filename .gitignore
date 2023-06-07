@@ -4,3 +4,6 @@ data
 wandb
 runs*
 *.pt
+multilabel_data
+multilabel_color_data
+data_v2

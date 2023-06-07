@@ -10,7 +10,7 @@ from torchinfo import summary
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-from eval import create_mAP_mAR_graph, eval_map_mar
+from eval import create_mAP_mAR_graph, eval_metrics
 from loss import FocalLoss
 from dataset import SUASDataset
 from model import SUASYOLO
@@ -22,16 +22,17 @@ seed = 42
 torch.manual_seed(seed)
 LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/2019/04/25/recipe/
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 WEIGHT_DECAY = 0
-EPOCHS = 200
+EPOCHS = 200 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
 NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
-TRAIN_DIRNAME = "train_10"
-REDUCED_TRAIN_DIRNAME = "train_1"
-VAL_DIRNAME = "validation_10"
-TEST_DIRNAME = "test_10"
+DATA_FOLDER = "data_v2"
+TRAIN_DIRNAME = "test_5"
+REDUCED_TRAIN_DIRNAME = "test_5"
+VAL_DIRNAME = "test_5"
+TEST_DIRNAME = "test_5"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -51,8 +52,8 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             x: torch.Tensor = x.to(device)
             y: torch.Tensor = y.to(device)
             out: torch.Tensor = model(x)
-            box_loss, object_loss, class_loss = loss_fn(out, y)
-            loss = box_loss + object_loss + class_loss
+            box_loss, object_loss, shape_loss, letter_loss, shape_color_loss, letter_color_loss = loss_fn(out, y)
+            loss = box_loss + object_loss + shape_loss + letter_loss + shape_color_loss + letter_color_loss
             mean_loss.append(loss.item())
             optimizer.zero_grad()
             loss.backward()
@@ -65,18 +66,27 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Loss/train', loss_num, step_no)
                 writer.add_scalar('Box Loss/train', box_loss.item(), step_no)
                 writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
-                writer.add_scalar('Class Loss/train', class_loss.item(), step_no)
-                if epoch_no % 4 == 0 and batch_idx == 0:
-                    train_mAP, train_mAR = eval_map_mar(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
-                    val_mAP, val_mAR = eval_map_mar(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                writer.add_scalar('Shape Loss/train', shape_loss.item(), step_no)
+                writer.add_scalar('Letter Loss/train', letter_loss.item(), step_no)
+                writer.add_scalar('Shape Color Loss/train', shape_color_loss.item(), step_no)
+                writer.add_scalar('Letter Color Loss/train', letter_color_loss.item(), step_no)
+                if epoch_no % 5 == 0 and batch_idx == 0:
+                    train_mAP, train_mAR, train_top1, train_top5, train_avgconf = eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    val_mAP, val_mAR, val_top1, val_top5, val_avgconf = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     # if mAP>0.9:
                     #     torch.save(model.state_dict(), f"overfit.pt")
                     #     break
-                    writer.add_scalar('mAP/train', train_mAP, step_no)
-                    writer.add_scalar('mAR/train', train_mAR, step_no) 
+                    writer.add_scalar('mAP/train', train_mAP, epoch_no)
+                    writer.add_scalar('mAR/train', train_mAR, epoch_no) 
+                    writer.add_scalar('Top 1/train', train_top1, epoch_no)
+                    writer.add_scalar('Top 5/train', train_top5, epoch_no)
+                    writer.add_scalar('Average Ground-Truth Confidence/train', train_avgconf, epoch_no)
 
-                    writer.add_scalar('mAP/validation', val_mAP, step_no)
-                    writer.add_scalar('mAR/validation', val_mAR, step_no) 
+                    writer.add_scalar('mAP/validation', val_mAP, epoch_no)
+                    writer.add_scalar('mAR/validation', val_mAR, epoch_no) 
+                    writer.add_scalar('Top 1/validation', val_top1, epoch_no)
+                    writer.add_scalar('Top 5/validation', val_top5, epoch_no)
+                    writer.add_scalar('Average Ground-Truth Confidence/validation', val_avgconf, epoch_no)
 
 
 
@@ -89,10 +99,10 @@ def main():
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
-    train_dataset = SUASDataset(f"data/images/{TRAIN_DIRNAME.split('_')[0]}", f"data/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    train_subset = SUASDataset(f"data/images/{REDUCED_TRAIN_DIRNAME.split('_')[0]}", f"data/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    val_dataset = SUASDataset(f"data/images/{VAL_DIRNAME.split('_')[0]}", f"data/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
-    test_dataset = SUASDataset(f"data/images/{TEST_DIRNAME.split('_')[0]}", f"data/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_dataset = SUASDataset(f"{DATA_FOLDER}/images/{TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_subset = SUASDataset(f"{DATA_FOLDER}/images/{REDUCED_TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    val_dataset = SUASDataset(f"{DATA_FOLDER}/images/{VAL_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
+    test_dataset = SUASDataset(f"{DATA_FOLDER}/images/{TEST_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
@@ -116,28 +126,29 @@ def main():
         for i, fig in enumerate(visualizations):
             writer.add_figure(f"Visualization {i}", fig)
 
-        mAP50, mAR50 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.5)
-        mAP75, mAR75 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.75)
-        mAP90, mAR90 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.9)
-        writer.add_hparams(
-            hparam_dict={
-            "learning_rate": LEARNING_RATE,
-            "batch_size": BATCH_SIZE,
-            "weight_decay": WEIGHT_DECAY,
-            "epochs": EPOCHS,
-            "num_classes": NUM_CLASSES,
-            "num_workers": NUM_WORKERS,
-            "pin_memory": PIN_MEMORY,
-            "iou_threshold": IOU_THRESHOLD,
-            "validation_conf_threshold": CONF_THRESHOLD
-        }, metric_dict={
-            "mAP@50": mAP50,
-            "mAR@50": mAR50,
-            "mAP@75": mAP75,
-            "mAR@75": mAR75,
-            "mAP@90": mAP90,
-            "mAR@90": mAR90, 
-        })
+        # not sure why this doesn't work but would be nice to add once I get to hyperparameter tuning
+        # mAP50, mAR50 = eval_metr(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.5)
+        # mAP75, mAR75 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.75)
+        # mAP90, mAR90 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.9)
+        # writer.add_hparams(
+        #     hparam_dict={
+        #     "learning_rate": LEARNING_RATE,
+        #     "batch_size": BATCH_SIZE,
+        #     "weight_decay": WEIGHT_DECAY,
+        #     "epochs": EPOCHS,
+        #     "num_classes": NUM_CLASSES,
+        #     "num_workers": NUM_WORKERS,
+        #     "pin_memory": PIN_MEMORY,
+        #     "iou_threshold": IOU_THRESHOLD,
+        #     "validation_conf_threshold": CONF_THRESHOLD
+        # }, metric_dict={
+        #     "mAP@50": mAP50,
+        #     "mAR@50": mAR50,
+        #     "mAP@75": mAP75,
+        #     "mAR@75": mAR75,
+        #     "mAP@90": mAP90,
+        #     "mAR@90": mAR90, 
+        # })
     else:
         fig.show()
         plt.show()

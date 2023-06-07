@@ -29,7 +29,7 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
     class_confidences = []
     for (img, label), ax in zip(dataset, axs):
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
-        boxes, objectness, classes = model.process_predictions(label.unsqueeze(0))
+        boxes, objectness, _shape_colors, _letter_colors, classes, _letter_classes = model.process_predictions(label.unsqueeze(0))
         boxes = boxes[objectness>0]
         classes = classes[objectness>0]
         pred_boxes, pred_classes, pred_objectness = model.predict(
@@ -109,7 +109,7 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     mARs = []
     print("Calculating mAP vs mAR")
     for conf_threshold in tqdm(np.linspace(0, 1, 25)):
-        mAP, mAR, _top1, _top5 = eval_metrics(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=iou_threshold, visualize=False)
+        mAP, mAR, _top1, _top5, _conf = eval_metrics(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=iou_threshold, visualize=False)
         mAPs.append(mAP)
         mARs.append(mAR)
     # print(list(zip(mAPs, mARs)))

@@ -29,8 +29,8 @@ class FocalLoss(nn.Module):
         assert predictions.shape[0] == targets.shape[0]
         predictions = predictions.transpose(1, 3)
         targets = targets.transpose(1, 3)
-        predictions = predictions.reshape(-1, 3 + self.num_classes)
-        targets = targets.reshape(-1, 3 + self.num_classes) 
+        predictions = predictions.reshape(-1, 3 + 6 + self.num_classes + 36)
+        targets = targets.reshape(-1, 3 + 6 + self.num_classes + 36) 
         # object loss (whether or not there was an object in the tile)
         # normally you weigh the loss differently for false positives vs false negatives
         objectness_targets = targets[..., 2]
@@ -60,15 +60,24 @@ class FocalLoss(nn.Module):
         # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
-        class_loss = self.mse(predictions[..., 3:][contains_obj], targets[..., 3:][contains_obj])
-        total_loss = box_loss + object_loss + class_loss
+        shape_loss = self.mse(predictions[..., 9:9+self.num_classes][contains_obj], targets[..., 9:9+self.num_classes][contains_obj])
+
+        non_person_object_indices = targets[contains_obj][..., 9:9+self.num_classes].argmax(dim=1) != 13 
+
+        letter_loss = self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
+
+        shape_color_loss = self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
+        letter_color_loss = self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
+
+        total_loss = box_loss + object_loss + shape_loss + letter_loss + shape_color_loss + letter_color_loss
         if torch.isnan(total_loss):
             print("box loss", box_loss)
             print("object loss", object_loss)
-            print("class loss", class_loss)
+            print("shape loss", shape_loss)
+            print("letter loss", letter_loss)
             print("predictions", predictions)
             print("targets", targets)
             print("contains_obj", contains_obj)
             raise ValueError("loss is nan")
         # total loss
-        return (box_loss, object_loss, class_loss) 
+        return (box_loss, object_loss, shape_loss, letter_loss, shape_color_loss, letter_color_loss) 
