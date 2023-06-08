@@ -152,7 +152,7 @@ class SUASYOLO(nn.Module):
         x[:,6:9,:,:] = self.sigmoid(x[:,6:9,:,:]) # letter color
 
         # x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
-        x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
+        # x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
 
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
