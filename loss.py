@@ -43,7 +43,7 @@ class FocalLoss(nn.Module):
         negative_object_loss = self.bce(objectness_predictions[no_obj], objectness_targets[no_obj])
 
         if not contains_obj.any():
-            return (torch.tensor(0), negative_object_loss, torch.tensor(0))
+            return (torch.tensor(0), negative_object_loss, torch.tensor(0), torch.tensor(0), torch.tensor(0), torch.tensor(0))
 
         object_loss = positive_object_loss + LAMBDA_NOOBJ * negative_object_loss
         
