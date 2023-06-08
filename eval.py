@@ -156,12 +156,14 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
 if __name__=='__main__':
     num_classes = 14
     model = SUASYOLO(num_classes = num_classes).to(DEVICE)
-    split_folder = "test_10"
+    split_folder = "test_100"
     data_folder = "data_v2"
     dataset = SUASDataset(f"{data_folder}/images/{split_folder.split('_')[0]}", f"{data_folder}/labels/{split_folder}", num_classes, n_cells = model.num_cells)
     model.load_state_dict(torch.load("weights/215/final.pt"))
     model.eval()
-    print(eval_metrics(model, dataset, visualize=False))
+    mAP, mAR, shape_conf, letter_conf, losses = eval_metrics(model, dataset, conf_threshold=0.5, iou_threshold=0.5, visualize=False)
+    print(f"mAP: {mAP}\nmAR: {mAR}\nshape_conf: {shape_conf}\nletter_conf: {letter_conf}")
+    print(f"box_loss: {losses[0]}\nobject_loss: {losses[1]}\nshape_loss: {losses[2]}\nletter_loss: {losses[3]}\nshape_color_loss: {losses[4]}\nletter_color_loss: {losses[5]}")
     # fig = create_mAP_mAR_graph(model, dataset)
     # fig.show()
     # plt.show()
