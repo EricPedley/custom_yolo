@@ -10,6 +10,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 from torchvision.ops import box_iou
 from visualize import display_boxes
 from tqdm import tqdm
+from loss import FocalLoss
 
 def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 0.5, iou_threshold: float = 0.5, visualize=False):
     '''
@@ -26,6 +27,14 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
     model.requires_grad_(False)
     shape_confidences = []
     letter_confidences = []
+    box_losses = []
+    object_losses = []
+    shape_losses = []
+    letter_losses = []
+    shape_color_losses = []
+    letter_color_losses = []
+    loss_fn = FocalLoss(14)
+
     for (img, label), ax in zip(dataset, axs):
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
         boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes = model.process_predictions(label.unsqueeze(0))
@@ -35,13 +44,20 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         shape_colors = shape_colors[objectness>0]
         letter_colors = letter_colors[objectness>0]
         objectness = objectness[objectness>0]
-
-        pred_boxes, pred_objectness, pred_shape_colors, pred_letter_colors, pred_shape_classes, pred_letter_classes = model.predict(
-            torch.tensor(img).type(torch.FloatTensor).permute(2,0,1).unsqueeze(0).to(DEVICE),
+        model_input = torch.tensor(img).type(torch.FloatTensor).permute(2,0,1).unsqueeze(0).to(DEVICE)
+        pred_boxes, pred_objectness, pred_shape_colors, pred_letter_colors, pred_shape_classes, pred_letter_classes, raw_predictions = model.predict(
+            model_input,
             conf_threshold=conf_threshold
         )
+        
+        box_loss, object_loss, shape_loss, letter_loss, shape_color_loss, letter_color_loss = loss_fn(raw_predictions.to("cpu"), label.unsqueeze(0))
 
-
+        box_losses.append(box_loss.item())
+        object_losses.append(object_loss.item())
+        shape_losses.append(shape_loss.item())
+        letter_losses.append(letter_loss.item())
+        shape_color_losses.append(shape_color_loss.item())
+        letter_color_losses.append(letter_color_loss.item())
         
         if visualize:
             display_boxes(boxes, shape_classes, objectness, (0,255,0),3,img, centers_only=True)
@@ -90,6 +106,16 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         if len(boxes)>0:
             recall = num_true_positives / len(boxes)
             recalls.append(recall)
+
+    validation_loss = (
+        np.mean(box_losses),
+        np.mean(object_losses),
+        np.mean(shape_losses),
+        np.mean(letter_losses),
+        np.mean(shape_color_losses),
+        np.mean(letter_color_losses)
+    )
+    
     if was_training:
         model.train()
         model.requires_grad_(True)
@@ -104,6 +130,7 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
         np.mean(recalls) if len(recalls)>0 else 0,
         np.mean(shape_confidences) if len(shape_confidences)>0 else 0,
         np.mean(letter_confidences) if len(letter_confidences)>0 else 0,
+        validation_loss
     )
 
 def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_threshold=0.5):
@@ -132,7 +159,7 @@ if __name__=='__main__':
     split_folder = "test_10"
     data_folder = "data_v2"
     dataset = SUASDataset(f"{data_folder}/images/{split_folder.split('_')[0]}", f"{data_folder}/labels/{split_folder}", num_classes, n_cells = model.num_cells)
-    model.load_state_dict(torch.load("weights/208/final.pt"))
+    model.load_state_dict(torch.load("weights/215/final.pt"))
     model.eval()
     print(eval_metrics(model, dataset, visualize=False))
     # fig = create_mAP_mAR_graph(model, dataset)

@@ -211,7 +211,7 @@ class SUASYOLO(nn.Module):
         # kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
         # return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
-        return boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes
+        return boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes, raw_predictions
     
 if __name__=="__main__":
     model = SUASYOLO(num_classes=14, img_width=640)
