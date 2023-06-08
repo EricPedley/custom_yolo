@@ -29,10 +29,10 @@ NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
 DATA_FOLDER = "data_v2"
-TRAIN_DIRNAME = "test_5"
-REDUCED_TRAIN_DIRNAME = "test_5"
-VAL_DIRNAME = "test_5"
-TEST_DIRNAME = "test_5"
+TRAIN_DIRNAME = "train_100"
+REDUCED_TRAIN_DIRNAME = "train_5"
+VAL_DIRNAME = "validation_10"
+TEST_DIRNAME = "test_100"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -68,8 +68,6 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
                 writer.add_scalar('Shape Loss/train', shape_loss.item(), step_no)
                 writer.add_scalar('Letter Loss/train', letter_loss.item(), step_no)
-                writer.add_scalar('Shape Color Loss/train', shape_color_loss.item(), step_no)
-                writer.add_scalar('Letter Color Loss/train', letter_color_loss.item(), step_no)
                 if epoch_no % 5 == 0 and batch_idx == 0:
                     train_mAP, train_mAR, train_shapeconf, train_letterconf= eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     val_mAP, val_mAR, val_shapeconf, val_letterconf = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
@@ -85,6 +83,8 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                     writer.add_scalar('mAR/validation', val_mAR, epoch_no) 
                     writer.add_scalar('Average Shape Ground-Truth Confidence/validation', val_shapeconf, epoch_no)
                     writer.add_scalar('Average Letter Ground-Truth Confidence/validation', val_letterconf, epoch_no)
+                    writer.add_scalar('Shape Color Loss/train', shape_color_loss.item(), epoch_no)
+                    writer.add_scalar('Letter Color Loss/train', letter_color_loss.item(), epoch_no)
 
 
 
