@@ -129,7 +129,10 @@ class SUASYOLO(nn.Module):
             # nn.Conv2d(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
         )
         self.sigmoid = nn.Sigmoid()
-        # self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Sequential(
+            self.sigmoid,
+            nn.Softmax(dim=1)
+        )
 
 
 
@@ -148,8 +151,8 @@ class SUASYOLO(nn.Module):
         x[:,3:6,:,:] = self.sigmoid(x[:,3:6,:,:]) # shape color
         x[:,6:9,:,:] = self.sigmoid(x[:,6:9,:,:]) # letter color
 
-        x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
-        # x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
+        # x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
+        x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
 
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions
@@ -188,22 +191,27 @@ class SUASYOLO(nn.Module):
 
     def predict(self, x: torch.Tensor, conf_threshold = 0.5, iou_threshold=0.5, max_preds = 10) -> "tuple[torch.Tensor, torch.Tensor, torch.Tensor]":
         '''
-        Returns (boxes, classes, objectness) where each is a tensor of shape (n, 4), (n, num_classes), (n, 1)
+        Returns (boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes) where each is a tensor of shape (n, 4), (n, 1), (n,3), (n,3), (n, num_classes), (n, 36) respectively
         '''
         n_batches = x.shape[0]
         raw_predictions = self.forward(x)
 
-        boxes, objectness, _shape_colors, _letter_colors, classes, _letter_classes = self.process_predictions(raw_predictions)
-        batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches).to(x.device)
-        batch_indices = batch_indices[objectness > conf_threshold]
+        boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes = map(lambda x: x.to("cpu"), self.process_predictions(raw_predictions))
+        # batch_indices = torch.arange(n_batches).repeat_interleave(boxes.shape[0]//n_batches).to(x.device)
+        # batch_indices = batch_indices[objectness > conf_threshold]
         boxes = boxes[objectness > conf_threshold]
-        classes = classes[objectness > conf_threshold]
+        shape_colors = shape_colors[objectness > conf_threshold]
+        letter_colors = letter_colors[objectness > conf_threshold]
+        shape_classes = shape_classes[objectness > conf_threshold]
+        letter_classes = letter_classes[objectness > conf_threshold]
+
+        # needs to be last or it fucks the indices for the rest of the predictions (getting punished for reassigning variables or something)
         objectness = objectness[objectness > conf_threshold]
 
         # kept_indices = batched_nms(boxes, objectness, batch_indices,iou_threshold) # todo: make this batched_nms and return the boxes per batch instead of as one
 
         # return boxes[kept_indices][:max_preds], classes[kept_indices][:max_preds], objectness[kept_indices][:max_preds]
-        return boxes, classes, objectness
+        return boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes
     
 if __name__=="__main__":
     model = SUASYOLO(num_classes=14, img_width=640)

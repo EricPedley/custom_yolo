@@ -71,22 +71,20 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Shape Color Loss/train', shape_color_loss.item(), step_no)
                 writer.add_scalar('Letter Color Loss/train', letter_color_loss.item(), step_no)
                 if epoch_no % 5 == 0 and batch_idx == 0:
-                    train_mAP, train_mAR, train_top1, train_top5, train_avgconf = eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
-                    val_mAP, val_mAR, val_top1, val_top5, val_avgconf = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    train_mAP, train_mAR, train_shapeconf, train_letterconf= eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    val_mAP, val_mAR, val_shapeconf, val_letterconf = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     # if mAP>0.9:
                     #     torch.save(model.state_dict(), f"overfit.pt")
                     #     break
                     writer.add_scalar('mAP/train', train_mAP, epoch_no)
                     writer.add_scalar('mAR/train', train_mAR, epoch_no) 
-                    writer.add_scalar('Top 1/train', train_top1, epoch_no)
-                    writer.add_scalar('Top 5/train', train_top5, epoch_no)
-                    writer.add_scalar('Average Ground-Truth Confidence/train', train_avgconf, epoch_no)
+                    writer.add_scalar('Average Shape Ground-Truth Confidence/train', train_shapeconf, epoch_no)
+                    writer.add_scalar('Average Letter Ground-Truth Confidence/train', train_letterconf, epoch_no)
 
                     writer.add_scalar('mAP/validation', val_mAP, epoch_no)
                     writer.add_scalar('mAR/validation', val_mAR, epoch_no) 
-                    writer.add_scalar('Top 1/validation', val_top1, epoch_no)
-                    writer.add_scalar('Top 5/validation', val_top5, epoch_no)
-                    writer.add_scalar('Average Ground-Truth Confidence/validation', val_avgconf, epoch_no)
+                    writer.add_scalar('Average Shape Ground-Truth Confidence/validation', val_shapeconf, epoch_no)
+                    writer.add_scalar('Average Letter Ground-Truth Confidence/validation', val_letterconf, epoch_no)
 
 
 

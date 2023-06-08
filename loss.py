@@ -66,6 +66,8 @@ class FocalLoss(nn.Module):
 
         letter_loss = self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
 
+        # color loss
+
         shape_color_loss = self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
         letter_color_loss = self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
 

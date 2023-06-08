@@ -24,58 +24,61 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
     was_training = model.training
     model.eval()
     model.requires_grad_(False)
-    top1_scores = []
-    top5_scores = []
-    class_confidences = []
+    shape_confidences = []
+    letter_confidences = []
     for (img, label), ax in zip(dataset, axs):
         img = img.permute(1, 2, 0).numpy().astype(np.uint8)
-        boxes, objectness, _shape_colors, _letter_colors, classes, _letter_classes = model.process_predictions(label.unsqueeze(0))
+        boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes = model.process_predictions(label.unsqueeze(0))
         boxes = boxes[objectness>0]
-        classes = classes[objectness>0]
-        pred_boxes, pred_classes, pred_objectness = model.predict(
+        shape_classes = shape_classes[objectness>0]
+        letter_classes = letter_classes[objectness>0]
+        shape_colors = shape_colors[objectness>0]
+        letter_colors = letter_colors[objectness>0]
+        objectness = objectness[objectness>0]
+
+        pred_boxes, pred_objectness, pred_shape_colors, pred_letter_colors, pred_shape_classes, pred_letter_classes = model.predict(
             torch.tensor(img).type(torch.FloatTensor).permute(2,0,1).unsqueeze(0).to(DEVICE),
             conf_threshold=conf_threshold
         )
-        # put that shit on the cpu
-        pred_boxes = pred_boxes.to("cpu")
-        pred_classes = pred_classes.to("cpu")
+
 
         
         if visualize:
-            display_boxes(boxes, classes, objectness, (0,255,0),3,img, centers_only=True)
-            display_boxes(pred_boxes, pred_classes, pred_objectness, (0,0,255),1,img, centers_only=True)
+            display_boxes(boxes, shape_classes, objectness, (0,255,0),3,img, centers_only=True)
+            display_boxes(pred_boxes, pred_shape_classes, pred_objectness, (0,0,255),1,img, centers_only=True)
             ax.imshow(img)
             ax.axis("off")
         # get number of boxes where the centers are closer than 50 * iou_threshold pixels
         distances_list = []
-        top1_scores_locally = []
-        top5_scores_locally = [] 
-        candidate_class_confidences = []
-        for box, class_probs_1 in zip(pred_boxes, pred_classes):
-            x1, y1 = (box*640).type(torch.int).tolist()
-            for box2, class_probs_2 in zip(boxes, classes):
-                ground_truth_class = torch.argmax(class_probs_2)
-                top5_classes = torch.argsort(class_probs_1, descending=True)[:5]
-                candidate_class_confidences.append(class_probs_1[ground_truth_class])
-                top1_scores_locally.append(ground_truth_class == top5_classes[0])
-                top5_scores_locally.append(ground_truth_class in top5_classes)
+        shape_local_conf = []
+        letter_local_conf = []
+        for pred_box, pred_shape_probs, pred_letter_probs in zip(pred_boxes, pred_shape_classes, pred_letter_classes):
+            pred_x, pred_y = (pred_box*640).type(torch.int).tolist()
+            for box2, shape_probs, letter_probs in zip(boxes, shape_classes, letter_classes):
+                if shape_probs.sum() == 0:
+                     continue
+                real_shape_class = torch.argmax(shape_probs)
+                real_letter_class = torch.argmax(letter_probs)
+
+                shape_local_conf.append(pred_shape_probs[real_shape_class])
+                letter_local_conf.append(pred_letter_probs[real_letter_class])
+
                 x2, y2 = (box2*640).type(torch.int).tolist()
-                distances_list.append(np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2])))
+                distances_list.append(np.linalg.norm(np.array([pred_x, pred_y]) - np.array([x2, y2])))
         distances = np.array(distances_list) 
-        top1_scores_locally = np.array(top1_scores_locally).astype(np.uint8)
-        top5_scores_locally = np.array(top5_scores_locally).astype(np.uint8)
-        candidate_class_confidences = np.array(candidate_class_confidences)
+        shape_local_conf = np.array(shape_local_conf)
+        letter_local_conf = np.array(letter_local_conf)
 
-        true_top1_scores = top1_scores_locally[distances < 50 * iou_threshold]
-        true_top5_scores = top5_scores_locally[distances < 50 * iou_threshold]
-        candidate_class_confidences = candidate_class_confidences[distances < 50 * iou_threshold]
+        valid_mask = distances < 50 * iou_threshold
 
-        if len(true_top1_scores) > 0:
-            top1_scores.append(np.mean(true_top1_scores))
-            top5_scores.append(np.mean(true_top5_scores))
-            class_confidences.append(np.mean(candidate_class_confidences))
+        shape_local_conf = shape_local_conf[valid_mask]
+        letter_local_conf = letter_local_conf[valid_mask]
 
-        true_positive_distances = distances[distances < 50 * iou_threshold]
+        if valid_mask.sum() > 0:
+            shape_confidences.append(np.mean(shape_local_conf))
+            letter_confidences.append(np.mean(letter_local_conf))
+
+        true_positive_distances = distances[valid_mask]
         num_true_positives = len(true_positive_distances)
 
         # ious = box_iou(boxes, pred_boxes)
@@ -99,9 +102,8 @@ def eval_metrics(model: SUASYOLO, dataset: SUASDataset, conf_threshold: float = 
     return (
         np.mean(precisions) if len(precisions)>0 else 0, 
         np.mean(recalls) if len(recalls)>0 else 0,
-        np.mean(top1_scores) if len(top1_scores)>0 else 0,
-        np.mean(top5_scores) if len(top5_scores)>0 else 0,
-        np.mean(class_confidences) if len(class_confidences)>0 else 0
+        np.mean(shape_confidences) if len(shape_confidences)>0 else 0,
+        np.mean(letter_confidences) if len(letter_confidences)>0 else 0,
     )
 
 def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_threshold=0.5):
@@ -109,7 +111,7 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
     mARs = []
     print("Calculating mAP vs mAR")
     for conf_threshold in tqdm(np.linspace(0, 1, 25)):
-        mAP, mAR, _top1, _top5, _conf = eval_metrics(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=iou_threshold, visualize=False)
+        mAP, mAR, *_other_metrics = eval_metrics(model, test_dataset, conf_threshold=conf_threshold, iou_threshold=iou_threshold, visualize=False)
         mAPs.append(mAP)
         mARs.append(mAR)
     # print(list(zip(mAPs, mARs)))
@@ -127,9 +129,10 @@ def create_mAP_mAR_graph(model: SUASYOLO, test_dataset: SUASDataset, iou_thresho
 if __name__=='__main__':
     num_classes = 14
     model = SUASYOLO(num_classes = num_classes).to(DEVICE)
-    data_folder = "test_10"
-    dataset = SUASDataset(f"data/images/{data_folder.split('_')[0]}", f"data/labels/{data_folder}", num_classes, n_cells = model.num_cells)
-    model.load_state_dict(torch.load("weights/good_181_coordsonly/final.pt"))
+    split_folder = "test_10"
+    data_folder = "data_v2"
+    dataset = SUASDataset(f"{data_folder}/images/{split_folder.split('_')[0]}", f"{data_folder}/labels/{split_folder}", num_classes, n_cells = model.num_cells)
+    model.load_state_dict(torch.load("weights/208/final.pt"))
     model.eval()
     print(eval_metrics(model, dataset, visualize=False))
     # fig = create_mAP_mAR_graph(model, dataset)
