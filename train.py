@@ -24,7 +24,7 @@ LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/20
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 2
 WEIGHT_DECAY = 0
-EPOCHS = 200 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
+EPOCHS = 100 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
 NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
@@ -69,8 +69,8 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                 writer.add_scalar('Shape Loss/train', shape_loss.item(), step_no)
                 writer.add_scalar('Letter Loss/train', letter_loss.item(), step_no)
                 if epoch_no % 5 == 0 and batch_idx == 0:
-                    train_mAP, train_mAR, train_shapeconf, train_letterconf= eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
-                    val_mAP, val_mAR, val_shapeconf, val_letterconf = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    train_mAP, train_mAR, train_shapeconf, train_letterconf, train_losses = eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    val_mAP, val_mAR, val_shapeconf, val_letterconf, val_losses = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
                     # if mAP>0.9:
                     #     torch.save(model.state_dict(), f"overfit.pt")
                     #     break

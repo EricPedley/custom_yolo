@@ -118,15 +118,15 @@ class SUASYOLO(nn.Module):
         C = self.num_classes
         hidden_size=512
         self.detector = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(1024 * S*S, hidden_size),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.5),
-            nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            # nn.Conv2d(1024, 5+num_classes, kernel_size=1, stride=1, padding=0),
+            # nn.Flatten(),
+            # nn.Linear(1024 * S*S, hidden_size),
+            # nn.LeakyReLU(0.1),
+            # nn.Dropout(0.5),
+            # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1024, (3+6+C+36), kernel_size=1, stride=1, padding=0),
         )
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Sequential(
@@ -151,8 +151,8 @@ class SUASYOLO(nn.Module):
         x[:,3:6,:,:] = self.sigmoid(x[:,3:6,:,:]) # shape color
         x[:,6:9,:,:] = self.sigmoid(x[:,6:9,:,:]) # letter color
 
-        # x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
-        # x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
+        #x[:,9:9+self.num_classes,:,:] = self.sigmoid(x[:,9:9+self.num_classes,:,:]) # shape class predictions
+        #x[:, 9+self.num_classes:, :, :] = self.sigmoid(x[:, 9+self.num_classes:, :, :]) # letter class predictions
 
         # x[:,5:,:,:] = self.sigmoid(x[:,5:,:,:]) # class predictions
         # x[:,5:,:,:] = self.softmax(x[:,5:,:,:]) # class predictions

@@ -64,7 +64,7 @@ def get_display_figures(model: SUASYOLO, dataset: SUASDataset, n=5, centers_only
         classes = classes[objectness > 0]
         objectness = objectness[objectness > 0]
         display_boxes(boxes, classes, objectness, (0,255,0),3,img, centers_only=centers_only)
-        pred_boxes, pred_conf, _pred_shape_color, _pred_letter_color, pred_classes, _pred_letter_classes= model.predict(torch.tensor(img).type(torch.FloatTensor).permute(2, 0, 1).unsqueeze(0).to(DEVICE))
+        pred_boxes, pred_conf, _pred_shape_color, _pred_letter_color, pred_classes, _pred_letter_classes, _raw_preds = model.predict(torch.tensor(img).type(torch.FloatTensor).permute(2, 0, 1).unsqueeze(0).to(DEVICE))
         display_boxes(pred_boxes, pred_classes, pred_conf, (0,0,255),1,img, centers_only=centers_only)
         fig = plt.figure()
         plt.title(f"Boxes for image {i}")
