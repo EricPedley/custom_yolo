@@ -22,21 +22,25 @@ def flatten(l):
   return out
 
 class DWConv(nn.Module):
+    '''
+    Drop-in replacement for nn.Conv2d
+    '''
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(DWConv, self).__init__()
-        # self.conv = nn.Sequential(
-        #     nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
-        #     nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
-        # )
-        self.conv = nn.Conv2d(
-            in_channels, 
-            out_channels, 
-            kernel_size, 
-            stride, 
-            padding, 
-            groups=math.gcd(in_channels, out_channels), 
-            bias=bias
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
+            nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
         )
+        # self.conv = nn.Conv2d(
+        #     in_channels, 
+        #     out_channels, 
+        #     kernel_size, 
+        #     stride, 
+        #     padding, 
+        #     groups=math.gcd(in_channels, out_channels), 
+        #     bias=bias
+        # )
+        self.stride=stride # for calculating how many size reductions there are later
        
     def forward(self, x):
         return self.conv(x)
@@ -68,8 +72,8 @@ class ResBlock(nn.Module):
         self.convs = nn.ModuleList(
             [
                 nn.Sequential(
-                    ConvLayer(channels, channels//2, kernel_size=1, stride=1, padding=0),
-                    ConvLayer(channels//2, channels, kernel_size=3, stride=1, padding=1)
+                    ConvLayer(channels, channels//2, kernel_size=1, stride=1, padding=0, use_depthwise=True),
+                    ConvLayer(channels//2, channels, kernel_size=3, stride=1, padding=1, use_depthwise=True)
                 )
                 for _ in range(num_repeats)
             ]
@@ -80,10 +84,11 @@ class ResBlock(nn.Module):
         return x
 
 class ConvLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False, use_depthwise = False):
         super(ConvLayer, self).__init__()
+        conv_class = DWConv if use_depthwise else nn.Conv2d
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias),
+            conv_class(in_channels, out_channels, kernel_size, stride, padding, bias=bias), 
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(0.1)
         )
