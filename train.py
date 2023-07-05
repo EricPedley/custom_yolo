@@ -42,6 +42,9 @@ if TENSORBOARD_LOGGING:
     os.makedirs(f"weights/{num_prev_runs}")
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
 def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset, train_dataset: SUASDataset):
+    '''
+    dataloader is the training dataloader, and train_dataset is the subset of the train dataset used for calculating metrics
+    '''
     loop = tqdm(range(epochs), leave=True)
     for epoch_no in loop:
         mean_loss = []
@@ -123,8 +126,8 @@ def main():
     model.eval()
     # create mAP vs mAR plot and write to tensorboard
 
-    mAP_mAR_fig = create_mAP_mAR_graph(model, train_dataset) 
-    visualizations = get_display_figures(model, train_dataset, n=min(5, BATCH_SIZE), centers_only=True)
+    mAP_mAR_fig = create_mAP_mAR_graph(model, test_dataset) 
+    visualizations = get_display_figures(model, test_dataset, n=min(5, BATCH_SIZE), centers_only=True)
 
     if TENSORBOARD_LOGGING:
         writer.add_figure("mAP vs mAR", mAP_mAR_fig)
