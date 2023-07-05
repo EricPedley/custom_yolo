@@ -62,23 +62,30 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
             loop.set_postfix(loss=loss_num)
 
             if TENSORBOARD_LOGGING:
-                step_no = epoch_no*len(dataloader) + batch_idx
-                writer.add_scalar('Loss/train', loss_num, step_no)
-                writer.add_scalar('Box Loss/train', box_loss.item(), step_no)
-                writer.add_scalar('Object Loss/train', object_loss.item(), step_no) 
-                writer.add_scalar('Shape Loss/train', shape_loss.item(), step_no)
-                writer.add_scalar('Letter Loss/train', letter_loss.item(), step_no)
                 if epoch_no % 5 == 0 and batch_idx == 0:
                     train_mAP, train_mAR, train_shapeconf, train_letterconf, train_losses = eval_metrics(model, train_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
-                    val_mAP, val_mAR, val_shapeconf, val_letterconf, val_losses = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
-                    # if mAP>0.9:
-                    #     torch.save(model.state_dict(), f"overfit.pt")
-                    #     break
+                    train_box_loss, train_obj_loss, train_shape_loss, train_letter_loss, train_shape_color_loss, train_letter_color_loss = train_losses
+
+                    writer.add_scalar('Box Loss/train', train_box_loss, epoch_no)
+                    writer.add_scalar('Object Loss/train', train_obj_loss, epoch_no)
+                    writer.add_scalar('Shape Loss/train', train_shape_loss, epoch_no)
+                    writer.add_scalar('Letter Loss/train', train_letter_loss, epoch_no)
+                    writer.add_scalar('Shape Color Loss/train', train_shape_color_loss, epoch_no)
+                    writer.add_scalar('Letter Color Loss/train', train_letter_color_loss, epoch_no)
                     writer.add_scalar('mAP/train', train_mAP, epoch_no)
                     writer.add_scalar('mAR/train', train_mAR, epoch_no) 
                     writer.add_scalar('Average Shape Ground-Truth Confidence/train', train_shapeconf, epoch_no)
                     writer.add_scalar('Average Letter Ground-Truth Confidence/train', train_letterconf, epoch_no)
 
+                    val_mAP, val_mAR, val_shapeconf, val_letterconf, val_losses = eval_metrics(model, validation_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+                    val_box_loss, val_obj_loss, val_shape_loss, val_letter_loss, val_shape_color_loss, val_letter_color_loss = val_losses
+
+                    writer.add_scalar('Box Loss/validation', val_box_loss, epoch_no)
+                    writer.add_scalar('Object Loss/validation', val_obj_loss, epoch_no)
+                    writer.add_scalar('Shape Loss/validation', val_shape_loss, epoch_no)
+                    writer.add_scalar('Letter Loss/validation', val_letter_loss, epoch_no)
+                    writer.add_scalar('Shape Color Loss/validation', val_shape_color_loss, epoch_no)
+                    writer.add_scalar('Letter Color Loss/validation', val_letter_color_loss, epoch_no)
                     writer.add_scalar('mAP/validation', val_mAP, epoch_no)
                     writer.add_scalar('mAR/validation', val_mAR, epoch_no) 
                     writer.add_scalar('Average Shape Ground-Truth Confidence/validation', val_shapeconf, epoch_no)
