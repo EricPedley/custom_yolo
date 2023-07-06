@@ -174,16 +174,16 @@ class SUASYOLO(nn.Module):
         super(SUASYOLO, self).__init__()
         self.num_classes = num_classes
         self.feature_extraction = nn.Sequential(
-            ConvLayer(3, 64, kernel_size=3, stride=1, padding=1), 
+            ConvLayer(3, 16, kernel_size=3, stride=1, padding=1), 
+            ConvLayer(16, 32, kernel_size=3, stride=2, padding=1),
+            *[C2f(32, 32) for _ in range(1)],
+            ConvLayer(32, 64, kernel_size=3, stride=2, padding=1),
+            *[C2f(64, 64) for _ in range(2)],
             ConvLayer(64, 128, kernel_size=3, stride=2, padding=1),
-            *[C2f(128, 128) for _ in range(3)],
+            *[C2f(128, 128) for _ in range(2)],
             ConvLayer(128, 256, kernel_size=3, stride=2, padding=1),
-            *[C2f(256, 256) for _ in range(6)],
-            ConvLayer(256, 512, kernel_size=3, stride=2, padding=1),
-            *[C2f(512, 512) for _ in range(6)],
-            ConvLayer(512, 1024, kernel_size=3, stride=2, padding=1),
-            *[C2f(1024, 1024) for _ in range(3)],
-            SPPF(1024, 1024, 5)
+            *[C2f(256, 256) for _ in range(1)],
+            SPPF(256, 256, 5)
         )
         # automatically calculate number of stride 2 convs in feature extraction
         num_size_reductions = 0
@@ -200,10 +200,10 @@ class SUASYOLO(nn.Module):
             # nn.LeakyReLU(0.1),
             # nn.Dropout(0.5),
             # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(1024, (3+6+C+36), kernel_size=1, stride=1, padding=0),
+            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(256, (3+6+C+36), kernel_size=1, stride=1, padding=0),
         )
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Sequential(
