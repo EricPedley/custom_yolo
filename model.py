@@ -123,7 +123,10 @@ class SUASYOLO(nn.Module):
         self.num_cells = S 
         C = self.num_classes
         hidden_size=512
-        self.detector = Detect()
+        self.detector = nn.Sequential(
+            Detect(),
+            nn.Conv2d(64, (3+6+C+36), kernel_size=1, stride=1, padding=0),
+        )
         # self.detector = nn.Sequential(
         #     # nn.Flatten(),
         #     # nn.Linear(1024 * S*S, hidden_size),

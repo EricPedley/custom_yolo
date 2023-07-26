@@ -64,12 +64,12 @@ class FocalLoss(nn.Module):
 
         non_person_object_indices = targets[contains_obj][..., 9:9+self.num_classes].argmax(dim=1) != 13 
 
-        letter_loss = torch.Tensor(0)#self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
+        letter_loss = torch.Tensor([0]).to("cuda")#self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
 
         # color loss
 
-        shape_color_loss = torch.Tensor(0)#self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
-        letter_color_loss = torch.Tensor(0)#self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
+        shape_color_loss = torch.Tensor([0]).to("cuda")#self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
+        letter_color_loss = torch.Tensor([0]).to("cuda")#self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
 
         total_loss = box_loss + object_loss + shape_loss + letter_loss + shape_color_loss + letter_color_loss
         
