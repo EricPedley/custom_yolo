@@ -120,15 +120,17 @@ class DFL(nn.Module):
         b, c, a = x.shape  # batch, channels, anchors
         return self.conv(x.view(b, 4, self.c1, a).transpose(2, 1).softmax(1)).view(b, 4, a)
         # return self.conv(x.view(b, self.c1, 4, a).softmax(1)).view(b, 4, a)
+
 class Detect(nn.Module):
     """YOLOv8 Detect head for detection models."""
+    # args for v8n are   - [[15, 18, 21], 1, Detect, [nc]]  # Detect(P3, P4, P5)
     dynamic = False  # force grid reconstruction
     export = False  # export mode
     shape = None
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init
 
-    def __init__(self, nc=80, ch=()):  # detection layer
+    def __init__(self, nc=59, ch=(256, 18, 21)):  # detection layer
         super().__init__()
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
@@ -143,6 +145,8 @@ class Detect(nn.Module):
 
     def forward(self, x):
         """Concatenates and returns predicted bounding boxes and class probabilities."""
+        y = self.cv2[0](x)
+        return y
         shape = x[0].shape  # BCHW
         for i in range(self.nl):
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
@@ -153,14 +157,11 @@ class Detect(nn.Module):
             self.shape = shape
 
         x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
-        if self.export and self.format in ('saved_model', 'pb', 'tflite', 'edgetpu', 'tfjs'):  # avoid TF FlexSplitV ops
-            box = x_cat[:, :self.reg_max * 4]
-            cls = x_cat[:, self.reg_max * 4:]
-        else:
-            box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+        
+        box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
         dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1) * self.strides
         y = torch.cat((dbox, cls.sigmoid()), 1)
-        return y if self.export else (y, x)
+        return y
 
     def bias_init(self):
         """Initialize Detect() biases, WARNING: requires stride availability."""

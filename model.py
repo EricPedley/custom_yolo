@@ -123,17 +123,18 @@ class SUASYOLO(nn.Module):
         self.num_cells = S 
         C = self.num_classes
         hidden_size=512
-        self.detector = nn.Sequential(
-            # nn.Flatten(),
-            # nn.Linear(1024 * S*S, hidden_size),
-            # nn.LeakyReLU(0.1),
-            # nn.Dropout(0.5),
-            # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
-            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-            ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(256, (3+6+C+36), kernel_size=1, stride=1, padding=0),
-        )
+        self.detector = Detect()
+        # self.detector = nn.Sequential(
+        #     # nn.Flatten(),
+        #     # nn.Linear(1024 * S*S, hidden_size),
+        #     # nn.LeakyReLU(0.1),
+        #     # nn.Dropout(0.5),
+        #     # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
+        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
+        #     nn.Conv2d(256, (3+6+C+36), kernel_size=1, stride=1, padding=0),
+        # )
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Sequential(
             self.sigmoid,
