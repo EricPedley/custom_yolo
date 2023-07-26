@@ -72,14 +72,6 @@ class FocalLoss(nn.Module):
         letter_color_loss = torch.Tensor(0)#self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
 
         total_loss = box_loss + object_loss + shape_loss + letter_loss + shape_color_loss + letter_color_loss
-        if torch.isnan(total_loss):
-            print("box loss", box_loss)
-            print("object loss", object_loss)
-            print("shape loss", shape_loss)
-            print("letter loss", letter_loss)
-            print("predictions", predictions)
-            print("targets", targets)
-            print("contains_obj", contains_obj)
-            raise ValueError("loss is nan")
+        
         # total loss
         return (box_loss, object_loss, shape_loss, letter_loss, shape_color_loss, letter_color_loss) 
