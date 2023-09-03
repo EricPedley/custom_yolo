@@ -4,6 +4,8 @@ from torchvision.ops import box_iou
 import numpy as np
 LAMBDA_NOOBJ = 0.5
 LAMBDA_COORD = 5
+LAMBDA_CLASS = 5
+LAMBDA_COLOR = 5
 from visualize import display_boxes
 from model import SUASYOLO
 import matplotlib.pyplot as plt
@@ -60,16 +62,16 @@ class FocalLoss(nn.Module):
         # class_loss = class_loss.mean() if class_loss.numel() > 0 else torch.tensor(0.0)
 
         # class loss
-        shape_loss = self.mse(predictions[..., 9:9+self.num_classes][contains_obj], targets[..., 9:9+self.num_classes][contains_obj])
+        shape_loss = LAMBDA_CLASS * self.mse(predictions[..., 9:9+self.num_classes][contains_obj], targets[..., 9:9+self.num_classes][contains_obj])
 
         non_person_object_indices = targets[contains_obj][..., 9:9+self.num_classes].argmax(dim=1) != 13 
 
-        letter_loss = self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
+        letter_loss = LAMBDA_CLASS * self.mse(predictions[..., 9+self.num_classes:][contains_obj][non_person_object_indices], targets[..., 9+self.num_classes:][contains_obj][non_person_object_indices])
 
         # color loss
 
-        shape_color_loss = self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
-        letter_color_loss = self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
+        shape_color_loss = LAMBDA_COLOR * self.mse(predictions[..., 3:6][contains_obj][non_person_object_indices], targets[..., 3:6][contains_obj][non_person_object_indices])
+        letter_color_loss = LAMBDA_COLOR * self.mse(predictions[..., 6:9][contains_obj][non_person_object_indices], targets[..., 6:9][contains_obj][non_person_object_indices])
 
         total_loss = box_loss + object_loss + shape_loss + letter_loss + shape_color_loss + letter_color_loss
         
