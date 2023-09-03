@@ -22,17 +22,17 @@ seed = 42
 torch.manual_seed(seed)
 LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/2019/04/25/recipe/
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 2
+BATCH_SIZE = 4
 WEIGHT_DECAY = 0
-EPOCHS = 100 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
+EPOCHS = 500 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
 NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
 DATA_FOLDER = "data_v2"
-TRAIN_DIRNAME = "train_100"
+TRAIN_DIRNAME = "train"
 REDUCED_TRAIN_DIRNAME = "train_5"
-VAL_DIRNAME = "validation_10"
-TEST_DIRNAME = "test_100"
+VAL_DIRNAME = "validation"
+TEST_DIRNAME = "test"
 IOU_THRESHOLD = 0.50 # iou threshold for nms
 CONF_THRESHOLD = 0.5 # confidence threshold for calculating mAP and mAR
 
@@ -48,7 +48,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
     loop = tqdm(range(epochs), leave=True)
     for epoch_no in loop:
         mean_loss = []
-        if epoch_no%10 == 0:
+        if epoch_no%10 == 0 and TENSORBOARD_LOGGING:
             torch.save(model.state_dict(), f"weights/{num_prev_runs}/epoch_{epoch_no}.pt")
 
         for batch_idx, (x, y) in enumerate(dataloader):
@@ -93,7 +93,7 @@ def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Mod
                     writer.add_scalar('mAR/validation', val_mAR, epoch_no) 
                     writer.add_scalar('Average Shape Ground-Truth Confidence/validation', val_shapeconf, epoch_no)
                     writer.add_scalar('Average Letter Ground-Truth Confidence/validation', val_letterconf, epoch_no)
-                    writer.add_scalar('Shape Color Loss/train', shape_color_loss.item(), epoch_no)
+                    writer.add_scalar('Shape Color Loss/train',shape_color_loss.item(), epoch_no)
                     writer.add_scalar('Letter Color Loss/train', letter_color_loss.item(), epoch_no)
 
 
@@ -127,40 +127,22 @@ def main():
     # create mAP vs mAR plot and write to tensorboard
 
     mAP_mAR_fig = create_mAP_mAR_graph(model, test_dataset) 
-    visualizations = get_display_figures(model, test_dataset, n=min(5, BATCH_SIZE), centers_only=True)
+    visualizations = get_display_figures(model, test_dataset, n=min(5, len(test_dataset)), centers_only=True)
 
     if TENSORBOARD_LOGGING:
         writer.add_figure("mAP vs mAR", mAP_mAR_fig)
         for i, fig in enumerate(visualizations):
             writer.add_figure(f"Visualization {i}", fig)
-
-        # not sure why this doesn't work but would be nice to add once I get to hyperparameter tuning
-        # mAP50, mAR50 = eval_metr(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.5)
-        # mAP75, mAR75 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.75)
-        # mAP90, mAR90 = eval_map_mar(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=0.9)
-        # writer.add_hparams(
-        #     hparam_dict={
-        #     "learning_rate": LEARNING_RATE,
-        #     "batch_size": BATCH_SIZE,
-        #     "weight_decay": WEIGHT_DECAY,
-        #     "epochs": EPOCHS,
-        #     "num_classes": NUM_CLASSES,
-        #     "num_workers": NUM_WORKERS,
-        #     "pin_memory": PIN_MEMORY,
-        #     "iou_threshold": IOU_THRESHOLD,
-        #     "validation_conf_threshold": CONF_THRESHOLD
-        # }, metric_dict={
-        #     "mAP@50": mAP50,
-        #     "mAR@50": mAR50,
-        #     "mAP@75": mAP75,
-        #     "mAR@75": mAR75,
-        #     "mAP@90": mAP90,
-        #     "mAR@90": mAR90, 
-        # })
     else:
         fig.show()
         plt.show()
     torch.save(model.state_dict(), f"weights/{num_prev_runs}/final.pt")
+    # print out the final metrics
+    mAP, mAR, shapeconf, letterconf, losses = eval_metrics(model, test_dataset, conf_threshold=CONF_THRESHOLD, iou_threshold=IOU_THRESHOLD, visualize=False)
+    box_loss, obj_loss, shape_loss, letter_loss, shape_color_loss, letter_color_loss = losses
+    print(f"mAP: {mAP}, mAR: {mAR}, shapeconf: {shapeconf}, letterconf: {letterconf}")
+    print(f"box_loss: {box_loss}, obj_loss: {obj_loss}, shape_loss: {shape_loss}, letter_loss: {letter_loss}, shape_color_loss: {shape_color_loss}, letter_color_loss: {letter_color_loss}")
+
 
 
 if __name__ == "__main__":
