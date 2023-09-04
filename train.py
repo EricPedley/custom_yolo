@@ -12,7 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from eval import create_mAP_mAR_graph, eval_metrics
 from loss import FocalLoss
-from dataset import SUASDataset
+# from dataset import AugmentedSUASDataset
+from augment import AugmentedSUASDataset
 from model import SUASYOLO
 from visualize import get_display_figures
 
@@ -41,7 +42,7 @@ if TENSORBOARD_LOGGING:
     num_prev_runs = len(os.listdir('runs')) 
     os.makedirs(f"weights/{num_prev_runs}")
     writer = SummaryWriter(f'runs/yolo-{num_prev_runs}')
-def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: SUASDataset, train_dataset: SUASDataset):
+def train_fn(model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, dataloader: DataLoader, device: str, epochs: int, validation_dataset: AugmentedSUASDataset, train_dataset: AugmentedSUASDataset):
     '''
     dataloader is the training dataloader, and train_dataset is the subset of the train dataset used for calculating metrics
     '''
@@ -107,10 +108,10 @@ def main():
         writer.add_text("Model Summary", str(model_summary).replace('\n', '  \n'))
         
         writer.add_graph(model, torch.ones(input_shape).to(DEVICE))
-    train_dataset = SUASDataset(f"{DATA_FOLDER}/images/{TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    train_subset = SUASDataset(f"{DATA_FOLDER}/images/{REDUCED_TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
-    val_dataset = SUASDataset(f"{DATA_FOLDER}/images/{VAL_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
-    test_dataset = SUASDataset(f"{DATA_FOLDER}/images/{TEST_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_dataset = AugmentedSUASDataset(f"{DATA_FOLDER}/images/{TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    train_subset = AugmentedSUASDataset(f"{DATA_FOLDER}/images/{REDUCED_TRAIN_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{REDUCED_TRAIN_DIRNAME}", NUM_CLASSES, n_cells = S)
+    val_dataset = AugmentedSUASDataset(f"{DATA_FOLDER}/images/{VAL_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{VAL_DIRNAME}", NUM_CLASSES, n_cells = S)
+    test_dataset = AugmentedSUASDataset(f"{DATA_FOLDER}/images/{TEST_DIRNAME.split('_')[0]}", f"{DATA_FOLDER}/labels/{TEST_DIRNAME}", NUM_CLASSES, n_cells = S)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
