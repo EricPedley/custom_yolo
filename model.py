@@ -171,7 +171,7 @@ class SUASYOLO(nn.Module):
         return x
 
     def process_predictions(self, raw_predictions: torch.Tensor):
-        '''Returns (boxes, objectness, classes)'''
+        '''Returns (boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes)'''
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
         raw_predictions = torch.transpose(raw_predictions, 1, 3)

@@ -36,6 +36,9 @@ from torchsummary import summary
 #             class_pred = classes.argmax()
 #             cv.putText(img, str(class_pred), (x1, y1 - 10), cv.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
+'''
+Operates in-place on `img`
+'''
 def display_boxes(boxes: torch.Tensor, classes: torch.Tensor, objectness: torch.Tensor, color, thickness, img, centers_only=False):
 
     for box, classes, objectness_score in zip(boxes, classes, objectness):
