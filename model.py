@@ -7,8 +7,6 @@ from torchinfo import summary
 from torchvision.ops import batched_nms 
 import numpy as np
 
-from yolov8_model import Conv, C2f, Detect, SPPF
-
 def pairwise(iterable):
     a, b = tee(iterable)
     next(b, None)
@@ -23,27 +21,22 @@ def flatten(l):
       out.append(item)
   return out
 
-
 class DWConv(nn.Module):
-    '''
-    Drop-in replacement for nn.Conv2d
-    '''
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(DWConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
-            nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
-        )
-        # self.conv = nn.Conv2d(
-        #     in_channels, 
-        #     out_channels, 
-        #     kernel_size, 
-        #     stride, 
-        #     padding, 
-        #     groups=math.gcd(in_channels, out_channels), 
-        #     bias=bias
+        # self.conv = nn.Sequential(
+        #     nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, groups=in_channels, bias=bias),
+        #     nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=bias),
         # )
-        self.stride=stride # for calculating how many size reductions there are later
+        self.conv = nn.Conv2d(
+            in_channels, 
+            out_channels, 
+            kernel_size, 
+            stride, 
+            padding, 
+            groups=math.gcd(in_channels, out_channels), 
+            bias=bias
+        )
        
     def forward(self, x):
         return self.conv(x)
@@ -75,8 +68,8 @@ class ResBlock(nn.Module):
         self.convs = nn.ModuleList(
             [
                 nn.Sequential(
-                    ConvLayer(channels, channels//2, kernel_size=1, stride=1, padding=0, use_depthwise=True),
-                    ConvLayer(channels//2, channels, kernel_size=3, stride=1, padding=1, use_depthwise=True)
+                    ConvLayer(channels, channels//2, kernel_size=1, stride=1, padding=0),
+                    ConvLayer(channels//2, channels, kernel_size=3, stride=1, padding=1)
                 )
                 for _ in range(num_repeats)
             ]
@@ -87,11 +80,10 @@ class ResBlock(nn.Module):
         return x
 
 class ConvLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False, use_depthwise = False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias=False):
         super(ConvLayer, self).__init__()
-        conv_class = DWConv if use_depthwise else nn.Conv2d
         self.conv = nn.Sequential(
-            conv_class(in_channels, out_channels, kernel_size, stride, padding, bias=bias), 
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(0.1)
         )
@@ -103,16 +95,18 @@ class SUASYOLO(nn.Module):
         super(SUASYOLO, self).__init__()
         self.num_classes = num_classes
         self.feature_extraction = nn.Sequential(
-            ConvLayer(3, 16, kernel_size=3, stride=1, padding=1), 
-            ConvLayer(16, 32, kernel_size=3, stride=2, padding=1),
-            *[C2f(32, 32) for _ in range(1)],
+            ConvLayer(3, 32, kernel_size=3, stride=1, padding=1), 
             ConvLayer(32, 64, kernel_size=3, stride=2, padding=1),
-            *[C2f(64, 64) for _ in range(2)],
+            ResBlock(64, num_repeats=1),
             ConvLayer(64, 128, kernel_size=3, stride=2, padding=1),
-            *[C2f(128, 128) for _ in range(2)],
+            ResBlock(128, num_repeats=2),
             ConvLayer(128, 256, kernel_size=3, stride=2, padding=1),
-            *[C2f(256, 256) for _ in range(1)],
-            SPPF(256, 256, 5)
+            ResBlock(256, num_repeats=8),
+            ConvLayer(256, 512, kernel_size=3, stride=2, padding=1),
+            ResBlock(512, num_repeats=8),
+            ConvLayer(512, 1024, kernel_size=3, stride=2, padding=1),
+            ResBlock(1024, num_repeats=4),
+            ConvLayer(1024, 1024, kernel_size=3, stride=2, padding=1)
         )
         # automatically calculate number of stride 2 convs in feature extraction
         num_size_reductions = 0
@@ -124,20 +118,15 @@ class SUASYOLO(nn.Module):
         C = self.num_classes
         hidden_size=512
         self.detector = nn.Sequential(
-            Detect(),
-            nn.Conv2d(64, (3+6+C+36), kernel_size=1, stride=1, padding=0),
+            # nn.Flatten(),
+            # nn.Linear(1024 * S*S, hidden_size),
+            # nn.LeakyReLU(0.1),
+            # nn.Dropout(0.5),
+            # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            ConvLayer(1024, 1024, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(1024, (3+6+C+36), kernel_size=1, stride=1, padding=0),
         )
-        # self.detector = nn.Sequential(
-        #     # nn.Flatten(),
-        #     # nn.Linear(1024 * S*S, hidden_size),
-        #     # nn.LeakyReLU(0.1),
-        #     # nn.Dropout(0.5),
-        #     # nn.Linear(hidden_size, (self.num_cells ** 2) * (3 + 6 + C + 36)),
-        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-        #     ConvLayer(256, 256, kernel_size=3, stride=1, padding=1),
-        #     nn.Conv2d(256, (3+6+C+36), kernel_size=1, stride=1, padding=0),
-        # )
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Sequential(
             self.sigmoid,
@@ -171,7 +160,7 @@ class SUASYOLO(nn.Module):
         return x
 
     def process_predictions(self, raw_predictions: torch.Tensor):
-        '''Returns (boxes, objectness, shape_colors, letter_colors, shape_classes, letter_classes)'''
+        '''Returns (boxes, objectness, classes)'''
         # each vector is (center_x, center_y, w, h, objectness, class1, class2, ...)
         # where the coordinates are a fraction of the cell size and relative to the top left corner of the cell
         raw_predictions = torch.transpose(raw_predictions, 1, 3)
