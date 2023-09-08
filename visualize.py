@@ -6,7 +6,7 @@ from dataset import SUASDataset
 from model import SUASYOLO
 import torch
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-from torchsummary import summary
+from torchinfo import summary
 
 # img_file = "data/images/tiny_train/image0.png"
 # label_file = "data/labels/tiny_train/image0.txt"
