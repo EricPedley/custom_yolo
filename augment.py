@@ -2,7 +2,7 @@ from dataset import SUASDataset
 import torch
 import os
 import cv2 as cv
-import torchvision.transforms.v2 as transforms
+import torchvision.transforms.functional as TF
 
 alphanumerics = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -36,8 +36,10 @@ class AugmentedSUASDataset(SUASDataset):
     def __getitem__(self, idx) -> "tuple(torch.Tensor, torch.Tensor)":
         img_path = os.path.join(self.img_dir, self.imgs[idx])
         label_path = os.path.join(self.label_dir, self.labels[idx])
-        do_reflect_x = True #torch.rand(1) > 0.5
-        do_reflect_y = True #torch.rand(1) > 0.5
+        do_reflect_x = torch.rand(1) > 0.5
+        do_reflect_y = torch.rand(1) > 0.5
+        brightness_modification_amount  = torch.clamp(torch.normal(1,0.5), 0.5 ,1.5)
+        contrast_factor  = torch.clamp(torch.normal(1,0.5), 0.5 ,1.5)
         
         boxes = []
         with open(label_path) as f:
@@ -55,6 +57,8 @@ class AugmentedSUASDataset(SUASDataset):
                 boxes.append([shape_class, letter_class, *shape_color, *letter_color, *box_dims])
         boxes = torch.tensor(boxes)
         img = torch.tensor(cv.imread(img_path)).type(torch.FloatTensor).permute(2, 0, 1)
+        img = TF.adjust_brightness(img, brightness_modification_amount)
+        img = TF.adjust_contrast(img, contrast_factor)
         if do_reflect_x:
             img = img_horizontal_reflection(img)
         if do_reflect_y:
