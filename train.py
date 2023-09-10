@@ -23,9 +23,9 @@ seed = 42
 torch.manual_seed(seed)
 LEARNING_RATE = 3e-4 # andrej karpathy magic number http://karpathy.github.io/2019/04/25/recipe/
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 WEIGHT_DECAY = 0
-EPOCHS = 500 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
+EPOCHS = 200 if os.getenv("EPOCHS") is None else int(os.getenv("EPOCHS"))
 NUM_CLASSES = 14
 NUM_WORKERS = 4
 PIN_MEMORY = True
